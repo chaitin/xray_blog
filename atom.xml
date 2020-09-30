@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.xray.cool</id>
+    <title>xray 技术博客</title>
+    <updated>2020-09-30T04:51:22.111Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.xray.cool"/>
+    <link rel="self" href="https://blog.xray.cool/atom.xml"/>
+    <logo>https://blog.xray.cool/images/avatar.png</logo>
+    <icon>https://blog.xray.cool/favicon.ico</icon>
+    <rights>All rights reserved 2020, xray 技术博客</rights>
+    <entry>
+        <title type="html"><![CDATA[从SQL注入到整站打包与本地搭建]]></title>
+        <id>https://blog.xray.cool/post/cong-sql-zhu-ru-dao-zheng-zhan-da-bao-yu-ben-di-da-jian/</id>
+        <link href="https://blog.xray.cool/post/cong-sql-zhu-ru-dao-zheng-zhan-da-bao-yu-ben-di-da-jian/">
+        </link>
+        <updated>2020-09-09T08:54:17.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[我捡到一个10W的洞]]></title>
+        <id>https://blog.xray.cool/post/wo-jian-dao-yi-ge-10w-de-dong/</id>
+        <link href="https://blog.xray.cool/post/wo-jian-dao-yi-ge-10w-de-dong/">
+        </link>
+        <updated>2020-09-09T08:50:38.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[我对逻辑漏洞的认知]]></title>
+        <id>https://blog.xray.cool/post/wo-dui-luo-ji-lou-dong-de-ren-zhi/</id>
+        <link href="https://blog.xray.cool/post/wo-dui-luo-ji-lou-dong-de-ren-zhi/">
+        </link>
+        <updated>2020-09-08T06:50:41.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[针对宝塔的RASP及其disable_functions的绕过]]></title>
+        <id>https://blog.xray.cool/post/zhen-dui-bao-ta-de-rasp-ji-qi-disable_functions-de-rao-guo/</id>
+        <link href="https://blog.xray.cool/post/zhen-dui-bao-ta-de-rasp-ji-qi-disable_functions-de-rao-guo/">
+        </link>
+        <updated>2020-09-07T10:29:24.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Shiro RememberMe 漏洞检测的探索之路]]></title>
+        <id>https://blog.xray.cool/post/shiro-rememberme-lou-dong-jian-ce-de-tan-suo-zhi-lu/</id>
+        <link href="https://blog.xray.cool/post/shiro-rememberme-lou-dong-jian-ce-de-tan-suo-zhi-lu/">
+        </link>
+        <updated>2020-09-07T10:22:57.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[即打通 web 全链路之后，我们又...]]></title>
+        <id>https://blog.xray.cool/post/ji-da-tong-web-quan-lian-lu-zhi-hou-wo-men-you/</id>
+        <link href="https://blog.xray.cool/post/ji-da-tong-web-quan-lian-lu-zhi-hou-wo-men-you/">
+        </link>
+        <updated>2020-09-07T09:54:59.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Dubbo 反序列化漏洞]]></title>
+        <id>https://blog.xray.cool/post/apache-dubbo-fan-xu-lie-hua-lou-dong/</id>
+        <link href="https://blog.xray.cool/post/apache-dubbo-fan-xu-lie-hua-lou-dong/">
+        </link>
+        <updated>2020-09-04T10:46:54.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[java el 2.1 表达式注入payload(复现上古版本nexus rce)]]></title>
+        <id>https://blog.xray.cool/post/java-el-21-biao-da-shi-zhu-ru-payloadfu-xian-shang-gu-ban-ben-nexus-rce/</id>
+        <link href="https://blog.xray.cool/post/java-el-21-biao-da-shi-zhu-ru-payloadfu-xian-shang-gu-ban-ben-nexus-rce/">
+        </link>
+        <updated>2020-09-04T10:44:22.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[redis安全学习小记]]></title>
+        <id>https://blog.xray.cool/post/redis-an-quan-xue-xi-xiao-ji/</id>
+        <link href="https://blog.xray.cool/post/redis-an-quan-xue-xi-xiao-ji/">
+        </link>
+        <updated>2020-09-04T10:41:11.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[记一次从信息泄漏到RCE]]></title>
+        <id>https://blog.xray.cool/post/ji-yi-ci-cong-xin-xi-xie-lou-dao-rce/</id>
+        <link href="https://blog.xray.cool/post/ji-yi-ci-cong-xin-xi-xie-lou-dao-rce/">
+        </link>
+        <updated>2020-09-04T10:39:32.000Z</updated>
+    </entry>
+</feed>
