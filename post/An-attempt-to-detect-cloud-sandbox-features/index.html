@@ -1,0 +1,207 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>针对云沙箱特征探测的一次尝试 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="针对云沙箱特征探测的一次尝试 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="在现代攻防实战中，云端的动态沙箱往往在恶意软件识别中占有重要地位，作为红队也经常头疼于刚写好的免杀客户端就被云沙箱抓到恶意特征。在学习了多个反沙箱开源项目的代码后，发现大部分的反沙箱项目都是针对沙箱环境的特征进行排查，收集足够多而准确的沙箱..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              针对云沙箱特征探测的一次尝试
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-10-10
+              </span>
+              <span>
+                4 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/An-attempt-to-detect-cloud-sandbox-features.png" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <p>在现代攻防实战中，云端的动态沙箱往往在恶意软件识别中占有重要地位，作为红队也经常头疼于刚写好的免杀客户端就被云沙箱抓到恶意特征。在学习了多个反沙箱开源项目的代码后，发现大部分的反沙箱项目都是针对沙箱环境的特征进行排查，收集足够多而准确的沙箱特征是重点，便产生了动手写一个针对动态云沙箱的主动探测 demo 的想法，主动的去探测并且向外传输云沙箱的环境特征。</p>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1609835586883.png" alt="" loading="lazy"></figure>
+<p><strong>如何实现 demo ？</strong></p>
+<p>首先，现代沙箱都是 <strong>纯黑盒程序</strong> ，扔进一个文件，输出一个结果，而且还在云端部署，无法对其进行逆向分析定位特征，只能通过扔进去运行的程序主动收集并传出相关环境信息。</p>
+<p>这个 demo 共分为<strong>七个部分</strong>：</p>
+<ul>
+<li>
+<p>第一个部分是检查沙箱的出网情况，由于本 demo 的初衷是为了研究C2客户端的反沙箱方式，所以对于内部不出网的云沙箱直接阻止程序运行。</p>
+</li>
+<li>
+<p>第二部分为沙箱基础环境收集，最开始是锚定了：用户名、文件名、进程数、主机名、C盘大小四个因素，后来又加入了绝对路径的探测。</p>
+<p>注：在与群友沟通后，又提供了@xrayteam（dns 缓存，arp 缓存探测）；@haya （麦克风探测）的想法，感谢！</p>
+</li>
+<li>
+<p>第三部分是信息传出，对收集的数据进行异或和 base64 后以 http(s) 请求发送到指定的 server 进行接收，此处为了方便采用的是 GET 请求方式。</p>
+</li>
+<li>
+<p>第四部分为 server 端，这里写的比较粗糙，采用 flask 框架，主要功能是对于第一个出网探测包进行回应以及接受传出数据并写入文件。</p>
+</li>
+<li>
+<p>第五个部分是对于文件数据的解码脚本，把密文数据解码为明文并转换为更易于分析的 json 格式。</p>
+</li>
+<li>
+<p>第六个部分为数据分析，这也是最为重要并且目前最欠缺的部分，由于个人能力的限制，只做到了单类型信息的提取，并未做到信息之间的关联分析。此处后续可借鉴威胁情报中的 IOC 的部分分析思路。</p>
+</li>
+<li>
+<p>第七个部分为恶意诱饵，在检测器中硬编码恶意 shellcode ，作用是引诱云沙箱对样本进行主动运行。</p>
+</li>
+</ul>
+<p>把 demo 完成后扔到各大沙箱，virustotal，各大杀软云检测平台进行检测并等待数据传出，在测试几天的过程中一共收到了<strong>401</strong>个沙箱环境样本去重数据。</p>
+<p><em>注：这一步骤是可以做成自动化的，即定时任务自动生成恶意样本，自动对接api提交样本，自动提取特征文件并去重添加，由于时间仓促并未能实现。</em></p>
+<p>粗略的特征提取过滤结果如下图所示：</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.xray.cool/post-images/1609835596875.png" alt="" loading="lazy"></figure>
+<p>经过整理，提取高频非关联数据后的反沙箱程序可至少避免一半以上的沙箱探测。</p>
+<p>整个项目的 demo 过段时间会开源（本人拖延症晚期），欢迎与我探讨。</p>
+<p>Github主页：https://github.com/timwhitez</p>
+<p>希望能起到一个抛砖引玉的作用，个人能力有限，见谅。</p>
+<p>参考：</p>
+<ol>
+<li>https://www.usenix.org/system/files/conference/woot16/woot16-paper-blackthorne.pdf</li>
+<li>https://www.rapid7.com/globalassets/_pdfs/whitepaperguide/rapid7-whitepaper-metasploit-framework-encapsulating-av-techniques.pdf</li>
+<li>https://medium.com/@calebcheng_87413/avaudit-fingerprinting-av-emulators-part-1-introduction-7817b333e25c</li>
+</ol>
+
+              </div>
+              <div class="toc-container">
+                
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/from-sqli-to-website-dump/">
+              <h3 class="post-title">
+                从SQL注入到整站打包与本地搭建
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

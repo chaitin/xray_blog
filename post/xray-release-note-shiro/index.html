@@ -1,0 +1,242 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>既打通 web 全链路之后，我们又... | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="既打通 web 全链路之后，我们又... | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="不知不觉，xray 一周年已经过去一个月了。我们在感叹时间过的飞快的同时又在思考，xray 在哪些地方还需要完善和增加的东西。我们希望 xray 不仅仅只是一个漏洞检测工具，而是白帽子之间沟通交流的桥梁，更是安全渗透工程师与安全研发工程师之..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              既打通 web 全链路之后，我们又...
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-07
+              </span>
+              <span>
+                4 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/xray-release-note-shiro.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <p>不知不觉，xray 一周年已经过去一个月了。我们在感叹时间过的飞快的同时又在思考，xray 在哪些地方还需要完善和增加的东西。我们希望 xray 不仅仅只是一个漏洞检测工具，而是白帽子之间沟通交流的桥梁，更是安全渗透工程师与安全研发工程师之间的攻防思维的碰撞平台。下面来看看我们勤劳的安全攻城狮给 xray 带来了哪些新功能吧~</p>
+<h2 id="新增-shiro-漏洞检测插件shiro-漏洞一键检测">新增 shiro 漏洞检测插件，shiro 漏洞一键检测</h2>
+<p>今年5月，某安全媒体爆出《一次shiro反序列化引起的域控沦陷》，6月又披露了《tomcat结合shiro无文件webshell的技术研究》，更有白帽子直呼：“shiro真的是hw神洞”，帮助他完成了重要的攻击阶段。</p>
+<p>虽然之前 Github 有出过类似 shiro 的检测工具 shiro_tool 和 ShiroExploit，但 xray 研究后发现，现有社区检测工具都存在各种问题，尚没有一个简单好用又可靠的工具，所以本次更新，我们在高级版新增了 shiro 漏洞检测插件，该插件内置长亭独有的反序列化研究成果，让企业在 shiro 系列漏洞的防御上，变得更加得心应手。如果在使用过程中遇到非预期情况，欢迎及时反馈帮助我们一起改进。总结一下该插件亮点为:</p>
+<ol>
+<li>内置独家 Java 反序列化利用链，有效作用于 shiro 环境</li>
+<li>内置 Payload 支持全版本 Tomcat 回显，Tomcat 6,7,8,9 均通过测试</li>
+<li>借助反连平台可以完美支持非 Tomcat 环境的漏洞检测</li>
+<li>完整转置 ysoserial 至 Go 代码，无需 Java 依赖即可运行</li>
+<li>自带 shiro 100 key，且支持通过配置文件自定义 shiro key</li>
+</ol>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1620732668004.png" alt="" loading="lazy"></figure>
+<blockquote>
+<p>注：目前仅支持 rememberme 反序列化检测</p>
+</blockquote>
+<h2 id="baseline-插件新增手机号泄露检测">baseline 插件，新增手机号泄露检测</h2>
+<p>该配置项默认不开启，可以通过配置文件修改 <code>baseline</code> 下的 <code>detect_china_phone_number</code> 为 <code>true</code> 来启用，扫描效果为:</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.xray.cool/post-images/1620732690569.png" alt="" loading="lazy"></figure>
+<h2 id="合并反连平台中-http-与-rmi-的配置">合并反连平台中 HTTP 与 RMI 的配置</h2>
+<p>通过端口复用，实现了 HTTP 与 RMI 同端口不同服务，简化了反连平台部署成本。默认配置文件已经删除 RMI 服务相关配置，但仍然做了兼容性支持，对于 Nginx 反代等场景可以继续使用独立的 RMI 配置。<br>
+相关文档: https://xray.cool/xray/#/configration/reverse</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.xray.cool/post-images/1620732873032.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="4"><img src="https://blog.xray.cool/post-images/1620732899192.png" alt="" loading="lazy"></figure>
+<p>注：文中配置为本地 docker 环境配置，不适用于其他测试环境，请自行按文档修改配置</p>
+<h2 id="新增更多-poc">新增更多 POC</h2>
+<p>xray 每次发版都会将当前 Github 的所有 POC 打包到 binary 中，只要跟随 xray 更新，即可使用社区最新的 POC，目前社区 POC 共计 xxx，其中本次新增:</p>
+<ul>
+<li>poc-yaml-apache-flink-upload-rce</li>
+<li>poc-yaml-aspcms-backend-leak</li>
+<li>poc-yaml-citrix-cve-2020-8191-xss</li>
+<li>poc-yaml-consul-rexec-rce</li>
+<li>poc-yaml-consul-service-rce</li>
+<li>poc-yaml-f5-tmui-cve-2020-5902-rce</li>
+<li>poc-yaml-nexus-default-password</li>
+<li>poc-yaml-qnap-cve-2019-7192</li>
+<li>poc-yaml-spring-cloud-cve-2020-5410</li>
+</ul>
+<h2 id="其他细节调整">其他细节调整</h2>
+<ol>
+<li>
+<p>POC 语法中，header 的 key 改为大小写不敏感，如下列两个表达式结果是一致的:</p>
+<pre><code>response.headers[&quot;content-type&quot;] == &quot;application/json&quot;
+response.headers[&quot;Content-Type&quot;] == &quot;application/json&quot;
+</code></pre>
+</li>
+<li>
+<p>子域名 html 报告按 500 条分报告写入，防止数据太大打不开 https://github.com/chaitin/xray/issues/792</p>
+<p>如使用 <code>--html-output test.html</code> 输出，如果总共有 1300 个域名，最终会生成如下三个报告:</p>
+<pre><code>test.html
+test.html.500
+test.html.1000
+</code></pre>
+</li>
+<li>
+<p>修复 baseline 插件 header 值大小写误报问题 https://github.com/chaitin/xray/issues/796</p>
+</li>
+<li>
+<p>修复两个 POC 的误报问题</p>
+<ul>
+<li><code>poc-go-tongda-arbitrary-auth</code></li>
+<li><code>joomla-cnvd-2019-34135-rce.yml</code></li>
+</ul>
+</li>
+</ol>
+<h2 id="后话">后话</h2>
+<p>我们不断在思考，安全工具本身应该增加什么有特色的东西，来给企业或者用户带来更多的价值。或许之后的某一天，xray 会作为一个平台绽放出更多的安全工具，逐步变为 xray 兵器谱，这一天，我们共同期待。</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E6%96%B0%E5%A2%9E-shiro-%E6%BC%8F%E6%B4%9E%E6%A3%80%E6%B5%8B%E6%8F%92%E4%BB%B6shiro-%E6%BC%8F%E6%B4%9E%E4%B8%80%E9%94%AE%E6%A3%80%E6%B5%8B">新增 shiro 漏洞检测插件，shiro 漏洞一键检测</a></li>
+<li><a href="#baseline-%E6%8F%92%E4%BB%B6%E6%96%B0%E5%A2%9E%E6%89%8B%E6%9C%BA%E5%8F%B7%E6%B3%84%E9%9C%B2%E6%A3%80%E6%B5%8B">baseline 插件，新增手机号泄露检测</a></li>
+<li><a href="#%E5%90%88%E5%B9%B6%E5%8F%8D%E8%BF%9E%E5%B9%B3%E5%8F%B0%E4%B8%AD-http-%E4%B8%8E-rmi-%E7%9A%84%E9%85%8D%E7%BD%AE">合并反连平台中 HTTP 与 RMI 的配置</a></li>
+<li><a href="#%E6%96%B0%E5%A2%9E%E6%9B%B4%E5%A4%9A-poc">新增更多 POC</a></li>
+<li><a href="#%E5%85%B6%E4%BB%96%E7%BB%86%E8%8A%82%E8%B0%83%E6%95%B4">其他细节调整</a></li>
+<li><a href="#%E5%90%8E%E8%AF%9D">后话</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/something-about-dubbo-deserialization-vulnerability/">
+              <h3 class="post-title">
+                Apache Dubbo 反序列化漏洞
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

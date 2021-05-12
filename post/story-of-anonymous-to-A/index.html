@@ -1,0 +1,203 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>我从路人甲成长为王牌 A 的故事 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="我从路人甲成长为王牌 A 的故事 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="
+ID：Huuuuu
+漏洞类型：XSS、URL跳转等
+漏洞数量：26个
+时间：一个月
+
+不知从何时起，“黑客”这个很 Cool 的词就像一颗种子般，掉落在我内心丰沃却又贫瘠的土壤上。随着时间的浇灌，逐渐生根发芽。但想要成为一名真正的“黑客”..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              我从路人甲成长为王牌 A 的故事
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-01
+              </span>
+              <span>
+                4 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/story-of-anonymous-to-A.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <ul>
+<li>ID：Huuuuu</li>
+<li>漏洞类型：XSS、URL跳转等</li>
+<li>漏洞数量：26个</li>
+<li>时间：一个月</li>
+</ul>
+<p>不知从何时起，“黑客”这个很 Cool 的词就像一颗种子般，掉落在我内心丰沃却又贫瘠的土壤上。随着时间的浇灌，逐渐生根发芽。但想要成为一名真正的“黑客”，谈何容易。</p>
+<p>窗外喧喧嚷嚷，与我“死肥宅”的生活形成鲜明对比。国庆本是举国欢庆的日子，可对我来说却度日如年。我不甘于这过分普通的人生、过于廉价的薪水、和整天整夜在床上度过的日子。开始每天胡思乱想，想我那少年时的“黑客梦”。可能正是由于我的这份不甘心，让我开始了和 xray  的故事 ...</p>
+<h3 id="1让我产生兴趣">“1”让我产生兴趣</h3>
+<p>翻身起床打开平静了很久的电脑。浏览我关注的大佬们最近分享的技术知识。此时，一个漏洞扫描工具—— xray 成功吸引了我的注意。</p>
+<p>抱着试一下的态度，我照着使用指南将浏览器挂上了 xray 代理。将证书导入了浏览器。一打开网页...证书错误？这什么鬼？但聪明的我很快就想到了，可以通过 Burp 进行流量转发，这样应该就可以搞定关于证书的事情。果不其然页面正常了起来。当我刷了一圈网页，反过来回头看一眼日志，一些红色瞩目的标记，引起了我的注意。当一个 “1” 的反射 XSS 弹框，出现在平时浏览多次的网站上时，我开始真正对它产生了兴趣。</p>
+<p>备注：作者之前导入证书显示证书错误可能未信任证书。</p>
+<h3 id="redirect让我开始着迷">“Redirect”让我开始着迷</h3>
+<p>第二天我继续打开熟悉的网站进行测试。但开始抱着很大期望的我，逐渐冷却下来。我还是和往常一样，什么都没有发现。hhhh....</p>
+<p>但此时，我突然想起来那个没有关闭的软件。或许？它会帮助我发现什么问题？点开那个黑漆漆的窗口，向上翻了翻日志。嗯？Redirect？这是什么？打开百度，第一栏的关键词告诉我，它是一个跳转漏洞。凭借着我看到过的知识，很快就复现了出来。但是与正常的不同的是，这个跳转在通过后端后，竟然带着当前登录用户的 Token！这让我兴奋了起来。</p>
+<p>两个小时后，在经过仔细阅读奖励计划。我认为它是属于一个高危漏洞。这让我深深的喜欢上了这款可以“立竿见影”的扫描器。再加上配置起来很便捷，规则也不是很难。这就仿佛灰蒙蒙的天气突然来了一束冲散乌云的日光。我似乎能看到日后，它在我的测试过程中对我的帮助。</p>
+<h3 id="xray-助我打开挖洞之门">xray 助我打开挖洞之门</h3>
+<p>距离国庆已经过去两个月多月了。那个让我从一开始有点惊喜的工具，现在成为了我每日渗透的第一步。随着遇到的情况越来越多，我也越发能够灵活运用它。</p>
+<p>2020年1月10日，阿里白帽大会在杭州举行。这一场邀请制的精英白帽聚会，深深吸引了我。同时，xray 社区与阿里联合开启大会直通卡活动，活动期间还可以白嫖 xray 高级版。一向认为阿里巴巴坚不可摧的我，开始了对阿里的挑战之旅。</p>
+<p>通过经验以及对站点的简单判断，我选择只开启 XSS/JSONP/Redirect 这三处模块，并且降低了并发数量，来减少阿里 WAF 对我的影响。通过这样的策略，我在最初的一个星期之内发现淘宝网、阿里巴巴、1688 三个网站 6 处不同的缺陷。最终，在整个活动期间，我通过 xray 以及自己的测试，共提交漏洞26个，2个高危、13个中危、4个低危、7个未审核，成功从路人甲晋级为王牌A方块。</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li>
+<ul>
+<li><a href="#1%E8%AE%A9%E6%88%91%E4%BA%A7%E7%94%9F%E5%85%B4%E8%B6%A3">“1”让我产生兴趣</a></li>
+<li><a href="#redirect%E8%AE%A9%E6%88%91%E5%BC%80%E5%A7%8B%E7%9D%80%E8%BF%B7">“Redirect”让我开始着迷</a></li>
+<li><a href="#xray-%E5%8A%A9%E6%88%91%E6%89%93%E5%BC%80%E6%8C%96%E6%B4%9E%E4%B9%8B%E9%97%A8">xray 助我打开挖洞之门</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/story-of-xray-and-hacker/">
+              <h3 class="post-title">
+                那些白帽子与 xray 的故事
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

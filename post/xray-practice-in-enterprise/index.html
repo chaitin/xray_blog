@@ -1,0 +1,175 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>xray 在甲方安全的探索 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="xray 在甲方安全的探索 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="昨日，宜信安全应急响应中心发布了一篇名为 “superscan之被动扫描” 的文章，主要对 superscan 被动扫描的实现过程进行了分享。superscan 是宜信安全部基于 xray 研发的综合性威胁监控平台，不仅关注传统威胁，更加关..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              xray 在甲方安全的探索
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-03
+              </span>
+              <span>
+                3 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/xray-practice-in-enterprise.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <p>昨日，宜信安全应急响应中心发布了一篇名为 “superscan之被动扫描” 的文章，主要对 superscan 被动扫描的实现过程进行了分享。superscan 是宜信安全部基于 xray 研发的综合性威胁监控平台，不仅关注传统威胁，更加关注来自网络空间，各个角度全方位的威胁。与 xray 一样，该产品目前未开源。</p>
+<p>“superscan之被动扫描” 文章中提到为什么使用 xray 做被动扫描？</p>
+<p>是因为 xray 天然支持代理模式，可以快速集成到被动扫描中，且扫描效果不错。在 “superscan之被动扫描” 这套方案下，实现一个类似于 xray 的扫描替换掉 xray 也是很容易的。宜信安全部一开始也尝试过 w3af 等开源扫描器，也尝试过自己开发，最后综合从精力耗费、维护成本的角度考虑，选择了 xray 的方案，考虑 xray 有商业版本，有后续升级的空间。</p>
+<p>说 xray 社区版是个公益性项目一点不过分。我们一直推崇社区版旨在分享我们的研究成果，无限制、不收费，不走商业化路线。企业用户甚至可以直接包装一下打造一款自己的安全检测工具。</p>
+<p>从去年6月13日第一版发布开始，被动扫描一直是社区版主打推广的功能。这里的被动扫描指的是 HTTP 的被动代理模式的扫描。这种模式的原理可以用下面的图片来理解下:<br>
+<img src="https://blog.xray.cool/post-images/1565961613163.png" alt="" loading="lazy"></p>
+<p>HTTP 代理作为一个中间人的角色可以获得所有的经过代理的请求与响应。如果将代理设置在了浏览器端，那么当用户访问网页时，便会对当前访问的页面中的请求进行自动化的漏洞探测，可以说是另一种层面的“指哪打哪”。<br>
+<img src="https://blog.xray.cool/post-images/1599562403222.jpg" alt="" loading="lazy"></p>
+<p>当然，HTTP 代理并非是浏览器独享的功能，通过给手机配置代理，xray 可以协助测试 APP 服务接口中存在的安全问题；代理本身支持串联，与 awvs、burpsuite 等工具的联动已在社区广泛使用；通过在代码中使用 xray 创建的代理，第三方开发者也可以很方便将漏洞扫描功能集成到自己的安全平台中。</p>
+<p>当然 “superscan之被动扫描” 文中也有提到 xray 的缺点，xray 虽然开放使用，但不开源，扩展性有限。目前 xray 只支持单个host的请求频率，不支持配置指定任意 host 的请求频率，也不支持动态配置；每次修改配置需要重启xray。</p>
+<p>之后宜信的后续升级，我们会一起探讨，共同进步，促进产品往更好更优的方向发展。产品的缺点，我们也会在之后的版本中尽自己最大的能力去实现。这只是我们与甲方思维的一次碰撞，欢迎更多优秀的甲方安全部门能够封装、集成 xray ，让 xray 能吸收更多的思路与想法，打造更加优秀的 xray 社区版。</p>
+
+              </div>
+              <div class="toc-container">
+                
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/rad-practice-in-assert/">
+              <h3 class="post-title">
+                rad 浏览器爬虫如何参与到企业资产测绘中
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

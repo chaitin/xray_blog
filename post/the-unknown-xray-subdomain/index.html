@@ -1,0 +1,274 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>谈谈不为人知的 xray 子域名 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="谈谈不为人知的 xray 子域名 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="不管是白帽子用于漏洞挖掘还是企业进行日常安全巡检，web 漏扫首先要问题的问题是解决扫描目标，并找准目标探测入口。
+俗话说：“巧妇难为无米之炊”。纵使手握 xray 如此强大的扫描器，如果一个白帽子不能清楚的知道 web 资产的分布情况，扫..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              谈谈不为人知的 xray 子域名
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-11-02
+              </span>
+              <span>
+                7 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/the-unknown-xray-subdomain.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <p>不管是白帽子用于漏洞挖掘还是企业进行日常安全巡检，web 漏扫首先要问题的问题是解决扫描目标，并找准目标探测入口。</p>
+<p>俗话说：“巧妇难为无米之炊”。纵使手握 xray 如此强大的扫描器，如果一个白帽子不能清楚的知道 web 资产的分布情况，扫描也无从下手。</p>
+<p>xray 在最开始的时候，四处寻找一个快速、全面、准确、易用的子域名收集工具，用于集成在 xray 引擎中，最后无疾而终。</p>
+<p>那只能自己撸起袖子开始干咯~</p>
+<p><em>你与优雅的子域名收集工具之间，只有一个 license 的距离。</em></p>
+<h2 id="如何实现快-准-稳">如何实现快、准、稳？</h2>
+<h4 id="爆破一个字稳">爆破——一个字“稳”</h4>
+<p>爆破是子域名发现的常规手段。只要对常见子域名字典进行逐一尝试，便可得到相当数量的子域名。</p>
+<p>但其中需要注意两个问题。</p>
+<ul>
+<li>
+<p>一是：泛解析问题</p>
+<p>泛解析会导致，将本不存在的子域名被解析到某个ip上。为了验证是否存在泛解析的情况，我们可尝试请求随机字符串构造的子域名，若多次尝试的结果均可解析到某一ip，则放弃对其子域名的大量爆破，转由其他手段进行分析。此时，可选取高频小字典，通过比较不同子域名指向页面的相似度，可获得一些供后续进一步分析的种子域名。</p>
+</li>
+<li>
+<p>二是：单个 DNS 服务器高频请求带来的丢包及触发频限的问题</p>
+<p>爆破的常见方法是：</p>
+<p>使用多线程/协程等方式尽可能<strong>快</strong>的对 DNS 服务器发起请求，辅以一定的重试机制以应对丢包。但这无疑增加了网络的负担，容易造成该网络环境下其他请求的 DNS 解析失败。若没有对带宽施加合理的控制，容易造成大量数据包被链路中某一节点丢弃，反而需要更多数量的重试，以此恶性循环。同时，过快的请求速率还可能触发 DNS 服务器的请求频率限制，其表现为某段时间服务器突然失去响应、一段时间后又恢复，使子域名探测失去连续性。</p>
+</li>
+</ul>
+<p>为了解决上述两个棘手的问题，xray 子域名工具实践了一种<strong>新</strong>的发包策略，使域名爆破过程更加稳健。</p>
+<p>新策略可指定多个备选的 DNS 服务器，系统会自动根据 DNS 服务器的响应速度、响应失败率等指标调节 DNS 服务器的权重值及发包速率。较高权重的 DNS 服务器承担较大数量的查询，较低权重的则作为分流，让高权重的服务器有些许“喘息”的时间。</p>
+<p>通过该策略，DNS 请求失败率大幅度降低了。同时也减轻了网络负载，对同网络下其他扫描任务的影响降至较低水平。</p>
+<h4 id="域传送让问题最快解决">域传送——让问题“最快”解决</h4>
+<blockquote>
+<p>域传送（DNS zone transfer）漏洞是由于对 DNS 服务器的配置不当导致的信息泄露，通过它，我们有时可以收获大量子域名。</p>
+</blockquote>
+<p>那么，什么是域传送呢？</p>
+<p>DNS 服务是对可用性要求很高的服务，因此 DNS 提供了一种机制，能够允许后备服务器从主服务器中拷贝信息，以保障主服务器宕机能顶替主服务器提供服务。</p>
+<p>当主服务器未配置妥当，允许任意匿名的“后备服务器”获取信息时，域传送漏洞便产生了。</p>
+<p>我们如何知道是否存在域传送漏洞？</p>
+<p>前面提到，该漏洞是由于域名服务器的配置不当造成的。</p>
+<p>所以，我们第一步需要做的是，找到我们想要探测域名的权威 DNS 服务器。我们可以通过查询 DNS 的 NS（NameServer）记录，找到管理该域名的权威 DNS 服务器。</p>
+<p>第二步，对该 DNS 服务器发送 AXFR 请求，申请完全区域传输（Full Zone Transfer）。</p>
+<p>此时如果运气好，你将得到该服务器所管理的所有域名信息。</p>
+<p>简单的利用命令如下：</p>
+<pre><code class="language-bash">$ nslookup -type=NS example.com
+  example.com     nameserver = ns.example.com
+$ nslookup
+&gt; server ns.example.com
+&gt; ls
+</code></pre>
+<p><em>在日常运维中需要注意：常用的 DNS 服务程序（如BIND9）中，允许传送域名信息数据库至任意主机通常是<strong>默认行为</strong>，请注意<code>allow-transfer</code>等参数的配置。</em></p>
+<h4 id="基于关联关系的分析方法又快又准">基于关联关系的分析方法，又快又准</h4>
+<p>相当数量的域名都指向了Web服务，这些服务之间又相互交织、关联。主站点到子站点的超链接、证书中的使用者可选名称、安全策略配置文件... 所有能够体现出一个站点与另一个站点之间存在关联的信息，都是我们关注的重点。</p>
+<p>分析这些关联关系可以用很少的代价获取很多高质量的信息。通过请求分析得到的子域名，基本上是活跃且正在使用中的子域名。</p>
+<ul>
+<li>
+<p>重定向分析：分析重定向响应<code>header</code>中<code>Location</code>的值。</p>
+</li>
+<li>
+<p>内容安全策略分析：<code>Content-Security-Policy</code></p>
+<blockquote>
+<p>内容安全策略   (CSP) 是一个额外的安全层，用于检测并削弱某些特定类型的攻击，包括跨站脚本 (XSS) 和数据注入攻击等。</p>
+<p>配置内容安全策略涉及到添加 Content-Security-Policy  HTTP头部到一个页面，并配置相应的值，以控制用户代理（浏览器等）可以为该页面获取哪些资源。</p>
+</blockquote>
+<p>例如：</p>
+<blockquote>
+<p>Content-Security-Policy: default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com</p>
+</blockquote>
+</li>
+<li>
+<p><code>sitemap.xml</code>分析</p>
+</li>
+<li>
+<p><code>crossdomain.xml</code>分析</p>
+</li>
+<li>
+<p>页面分析：网站首页通常有指向子域名的超链接，可进行提取分析。</p>
+</li>
+<li>
+<p>JS分析：现代前端页面常常有通过 JS 实现的跳转，页面引入的 JS 也是不能放过的一部分。</p>
+</li>
+<li>
+<p>证书分析：在<code>https</code>网站使用的 SSL 证书中，包含着一项名为<strong>使用者可选名称</strong>的属性，其中也可能包含子域名信息。</p>
+<p>下图为通过浏览器的查看证书功能，我们可以看到该证书使用者的可选名称。<br>
+<img src="https://blog.xray.cool/post-images/1620732604195.png" alt="" loading="lazy"></p>
+</li>
+<li>
+<p>爬虫分析：通过对其他方法得到的子域名访问，可不断得到新的可供分析的页面，直到不再有新的子域名发现时退出。这便构成了一个简单的爬虫。</p>
+</li>
+</ul>
+<h2 id="既要功能也要结果">既要功能，也要结果</h2>
+<p>xray 的子域名爆破提供了精美的报告输出，并通过前端，提供了强大的筛选能力。它可以只展示存在 WEB 站点或能正确解析到 IP 的域名，或 IP 位置信息的呈现、CNAME 的输出等，方便对域名有更直观的印象与认知。</p>
+<h2 id="小记">小记</h2>
+<p>一年时间里，我们欣慰的看到以 xray 为漏扫核心，衍生出了大量出色的安全项目。</p>
+<ul>
+<li>xray-team 成员 TimWhite 结合 Rad 动态爬虫与 xray 打造了属于自己的分布式扫描器，获得了丰厚赏金。</li>
+<li>安全专家 V1ll4n 将 xray 利用于企业安全建设，xray 源源不断地为企业安全大脑提供高质量的信息源。</li>
+<li>宜信安全/Goby 等第三方安全厂商的集成，也足以说明 xray 值得信赖。</li>
+</ul>
+<p>我们因各位白帽集成 xray 所打造的趁手利器而振奋！</p>
+<p>当然，专业的事情，要交给专业的人做。全套的信息收集功能，资产管理功能，完善的分布式部署模式等，可详询洞鉴商业版。</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E5%BF%AB-%E5%87%86-%E7%A8%B3">如何实现快、准、稳？</a><br>
+*
+<ul>
+<li><a href="#%E7%88%86%E7%A0%B4%E4%B8%80%E4%B8%AA%E5%AD%97%E7%A8%B3">爆破——一个字“稳”</a></li>
+<li><a href="#%E5%9F%9F%E4%BC%A0%E9%80%81%E8%AE%A9%E9%97%AE%E9%A2%98%E6%9C%80%E5%BF%AB%E8%A7%A3%E5%86%B3">域传送——让问题“最快”解决</a></li>
+<li><a href="#%E5%9F%BA%E4%BA%8E%E5%85%B3%E8%81%94%E5%85%B3%E7%B3%BB%E7%9A%84%E5%88%86%E6%9E%90%E6%96%B9%E6%B3%95%E5%8F%88%E5%BF%AB%E5%8F%88%E5%87%86">基于关联关系的分析方法，又快又准</a></li>
+</ul>
+</li>
+<li><a href="#%E6%97%A2%E8%A6%81%E5%8A%9F%E8%83%BD%E4%B9%9F%E8%A6%81%E7%BB%93%E6%9E%9C">既要功能，也要结果</a></li>
+<li><a href="#%E5%B0%8F%E8%AE%B0">小记</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/An-attempt-to-detect-cloud-sandbox-features/">
+              <h3 class="post-title">
+                针对云沙箱特征探测的一次尝试
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

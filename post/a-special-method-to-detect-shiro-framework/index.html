@@ -1,0 +1,298 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>一种另类的 shiro 检测方式 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="一种另类的 shiro 检测方式 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x01 前言
+shiro 这玩意今年出现在大众视野里，众多师傅大喊hvv没有shiro不会玩，实际上追溯这个洞最早开始时候是2016年的事情了，也就是说因为某些攻防演练，这个洞火了起来，当然我也聊一点不一样东西，因为其他东西师傅们都玩出花..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              一种另类的 shiro 检测方式
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-03
+              </span>
+              <span>
+                6 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/a-special-method-to-detect-shiro-framework.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="0x01-前言">0x01 前言</h2>
+<p><strong>shiro</strong> 这玩意今年出现在大众视野里，众多师傅大喊hvv没有shiro不会玩，实际上追溯这个洞最早开始时候是2016年的事情了，也就是说因为某些攻防演练，这个洞火了起来，当然我也聊一点不一样东西，因为其他东西师傅们都玩出花了。</p>
+<h2 id="0x02-过程">0x02 过程</h2>
+<p>首先判断 <strong>shiro</strong> 的 <strong>key</strong> 这个过程，我之前采用的逻辑就是 <strong>YSO</strong> 的 <strong>URLDNS</strong> 针对 <strong>dnslog</strong> 进行处理，如果没有 <strong>dnslog</strong> 的情况下，考虑直接用CC盲打，判断延迟。这种会存在一些小问题，比如当这个 <strong>shiro</strong> 没有 <strong>dnslog</strong> ，且 <strong>gadget</strong> 不是CC的情况下，可能就会漏过一些漏洞。</p>
+<p>大家判断是否是 <strong>shiro</strong> 的逻辑，普遍都是在 <strong>request</strong> 的 <strong>cookie</strong> 中写入 <strong>rememberMe=1</strong> ，然后再来看 <strong>response</strong> 的 <strong>set-cookie</strong> 是否出现的 <strong>rememberMe=deleteMe</strong> 。下文就针对这个 <strong>rememberMe=deleteMe</strong> 进行深入研究，看看为啥会这样。</p>
+<p>网上已经有很多文章，包括我自己树立了一遍 <strong>shiro</strong> 反序列化的整个过程，这里就不多赘述，核心点在 <strong>AbstractRememberMeManager#getRememberedPrincipals</strong> 这段代码中。</p>
+<pre><code class="language-java">    public PrincipalCollection getRememberedPrincipals(SubjectContext subjectContext) {
+        PrincipalCollection principals = null;
+
+        try {
+            byte[] bytes = this.getRememberedSerializedIdentity(subjectContext);
+            if (bytes != null &amp;&amp; bytes.length &gt; 0) {
+                principals = this.convertBytesToPrincipals(bytes, subjectContext);
+            }
+        } catch (RuntimeException var4) {
+            principals = this.onRememberedPrincipalFailure(var4, subjectContext);
+        }
+
+        return principals;
+    }
+</code></pre>
+<p>好了，下面我们分别来看两种情况。</p>
+<h3 id="1-key不正确的情况">1、key不正确的情况</h3>
+<p>当key错误的时候，我们知道 <strong>AbstractRememberMeManager#decrypt</strong> 是处理解密的过程。</p>
+<pre><code class="language-java">    protected byte[] decrypt(byte[] encrypted) {
+        byte[] serialized = encrypted;
+        CipherService cipherService = this.getCipherService();
+        if (cipherService != null) {
+            ByteSource byteSource = cipherService.decrypt(encrypted, this.getDecryptionCipherKey());
+            serialized = byteSource.getBytes();
+        }
+
+        return serialized;
+    }
+</code></pre>
+<p>这里代码会进入<code>cipherService.decrypt(encrypted, this.getDecryptionCipherKey());</code>进行处理，由于key错误自然是解不出自己想要的内容，所以进入到 <strong>JcaCipherService#crypt(Cipher cipher, byte[] bytes)</strong>  这里会抛出异常。</p>
+<figure data-type="image" tabindex="1"><img src="http://l1nk3r.xmutsec.com/blog/7q50g.png" alt="image-20200721113728646" loading="lazy"></figure>
+<p>这里抛出异常之后，自然会进入到我们最开始核心点 <strong>AbstractRememberMeManager#getRememberedPrincipals</strong> 的 <strong>catch</strong> 异常捕获的逻辑当中，别急，先慢慢品一下这个。</p>
+<pre><code class="language-java">catch (RuntimeException var4) {
+            principals = this.onRememberedPrincipalFailure(var4, subjectContext);
+        }
+</code></pre>
+<p>跟进去 <strong>onRememberedPrincipalFailure</strong> 方法，这里代码就4行，不多赘述继续跟进 <strong>forgetIdentity</strong> 方法。</p>
+<pre><code class="language-java">    protected PrincipalCollection onRememberedPrincipalFailure(RuntimeException e, SubjectContext context) {
+        if (log.isDebugEnabled()) {
+            log.debug(&quot;There was a failure while trying to retrieve remembered principals.  This could be due to a configuration problem or corrupted principals.  This could also be due to a recently changed encryption key.  The remembered identity will be forgotten and not used for this request.&quot;, e);
+        }
+
+        this.forgetIdentity(context);
+        throw e;
+    }
+</code></pre>
+<p>在 <strong>forgetIdentity</strong> 方法当中从 <strong>subjectContext</strong> 对象获取 <strong>request</strong> 和 <strong>response</strong> ，继续由<code>forgetIdentity(HttpServletRequest request, HttpServletResponse response)</code>这个构造方法处理。</p>
+<pre><code>    public void forgetIdentity(SubjectContext subjectContext) {
+        if (WebUtils.isHttp(subjectContext)) {
+            HttpServletRequest request = WebUtils.getHttpRequest(subjectContext);
+            HttpServletResponse response = WebUtils.getHttpResponse(subjectContext);
+            forgetIdentity(request, response);
+        }
+    }
+</code></pre>
+<p>跟进<code>forgetIdentity(HttpServletRequest request, HttpServletResponse response)</code>，看到一个 <strong>removeFrom</strong> 方法。</p>
+<pre><code class="language-java">    private void forgetIdentity(HttpServletRequest request, HttpServletResponse response) {
+        getCookie().removeFrom(request, response);
+    }
+</code></pre>
+<p>继续跟进 <strong>removeFrom</strong> 方法，发现了给我们的 <strong>Cookie</strong> 增加 <strong>deleteMe</strong> 字段的位置了。</p>
+<pre><code class="language-java">    public void removeFrom(HttpServletRequest request, HttpServletResponse response) {
+        String name = getName();
+        String value = DELETED_COOKIE_VALUE;                    //deleteMe
+        String comment = null; //don't need to add extra size to the response - comments are irrelevant for deletions
+        String domain = getDomain();
+        String path = calculatePath(request);
+        int maxAge = 0; //always zero for deletion
+        int version = getVersion();
+        boolean secure = isSecure();
+        boolean httpOnly = false; //no need to add the extra text, plus the value 'deleteMe' is not sensitive at all
+
+        addCookieHeader(response, name, value, comment, domain, path, maxAge, version, secure, httpOnly);
+
+</code></pre>
+<h3 id="2-反序列化gadget">2、反序列化gadget</h3>
+<p>还有一种情况，大家用反序列化 <strong>gadget</strong> 生成之后，拿shiro加密算法进行加密，但是最后依然在 <strong>response</strong> 里面携带了<code>rememberMe=deleteMe</code>。</p>
+<figure data-type="image" tabindex="2"><img src="http://l1nk3r.xmutsec.com/blog/55nkd.png" alt="image-20200721134734696" loading="lazy"></figure>
+<p>这里再来品一下，还是回到 <strong>AbstractRememberMeManager#convertBytesToPrincipals</strong> 方法当中，这里的key肯定是正确的，所以经过 <strong>decrypt</strong> 处理之后返回 <strong>bytes</strong> 数组，进入了 <strong>deserialize</strong> 方法进行反序列化处理。</p>
+<pre><code class="language-java">    protected PrincipalCollection convertBytesToPrincipals(byte[] bytes, SubjectContext subjectContext) {
+        if (this.getCipherService() != null) {
+            bytes = this.decrypt(bytes);
+        }
+
+        return this.deserialize(bytes);
+    }
+</code></pre>
+<p>跟进 <strong>deserialize</strong> 方法，下面重点来了。</p>
+<pre><code class="language-java">    protected PrincipalCollection deserialize(byte[] serializedIdentity) {
+        return (PrincipalCollection)this.getSerializer().deserialize(serializedIdentity);
+    }
+</code></pre>
+<p>反序列化的 <strong>gadget</strong> 实际上并不是继承了 <strong>PrincipalCollection</strong> ，所以这里进行类型转换会报错。</p>
+<figure data-type="image" tabindex="3"><img src="http://l1nk3r.xmutsec.com/blog/mzr2u.png" alt="image-20200721135854719" loading="lazy"></figure>
+<p>但是在做类型转换之前，先进入了 <strong>DefaultSerializer#deserialize</strong> 进行反序列化处理，等处理结束返回 <strong>deserialized</strong> 时候，进行类型转换自然又回到了上面提到的类型转换异常，我们 <strong>key</strong> 不正确的情况下的 <strong>catch</strong> 异常捕获的逻辑里，后面的流程就和上述一样了。</p>
+<figure data-type="image" tabindex="4"><img src="http://l1nk3r.xmutsec.com/blog/yrs87.png" alt="image-20200721140044707" loading="lazy"></figure>
+<figure data-type="image" tabindex="5"><img src="http://l1nk3r.xmutsec.com/blog/dd2a3.png" alt="image-20200721140247649" loading="lazy"></figure>
+<h2 id="0x03-构造">0x03 构造</h2>
+<p>那么总结一下上面的两种情况，要想达到只依赖shiro自身进行key检测，只需要满足两点：</p>
+<p>1.构造一个继承 <strong>PrincipalCollection</strong> 的序列化对象。</p>
+<p>2.key正确情况下不返回 <strong>deleteMe</strong> ，key错误情况下返回 <strong>deleteMe</strong> 。</p>
+<p>基于这两个条件下 <strong>SimplePrincipalCollection</strong> 这个类自然就出现了，这个类可被序列化，继承了 <strong>PrincipalCollection</strong> 。</p>
+<figure data-type="image" tabindex="6"><img src="http://l1nk3r.xmutsec.com/blog/zjc9j.png" alt="image-20200721140626782" loading="lazy"></figure>
+<p>构造POC实际上也很简单，构造一个这个空对象也是可以达到效果的。</p>
+<pre><code class="language-java">        SimplePrincipalCollection simplePrincipalCollection = new SimplePrincipalCollection();
+        ObjectOutputStream obj = new ObjectOutputStream(new FileOutputStream(&quot;payload&quot;));
+        obj.writeObject(simplePrincipalCollection);
+        obj.close();
+</code></pre>
+<p>key正确：</p>
+<figure data-type="image" tabindex="7"><img src="http://l1nk3r.xmutsec.com/blog/ehfkk.png" alt="image-20200721141108560" loading="lazy"></figure>
+<p>key错误：</p>
+<figure data-type="image" tabindex="8"><img src="http://l1nk3r.xmutsec.com/blog/73b1a.png" alt="image-20200721141256100" loading="lazy"></figure>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#0x01-%E5%89%8D%E8%A8%80">0x01 前言</a></li>
+<li><a href="#0x02-%E8%BF%87%E7%A8%8B">0x02 过程</a>
+<ul>
+<li><a href="#1-key%E4%B8%8D%E6%AD%A3%E7%A1%AE%E7%9A%84%E6%83%85%E5%86%B5">1、key不正确的情况</a></li>
+<li><a href="#2-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96gadget">2、反序列化gadget</a></li>
+</ul>
+</li>
+<li><a href="#0x03-%E6%9E%84%E9%80%A0">0x03 构造</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/xray-practice-in-enterprise/">
+              <h3 class="post-title">
+                xray 在甲方安全的探索
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,397 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>我用几十行代码封装了xray | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="我用几十行代码封装了xray | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x00 前言
+作为一个从乙方转到甲方的安全从业人员，近期，我的观点慢慢从挖掘技术的深度，转变为“解决问题“的模式。漏洞扫描系统作为不可获缺的企业安全建设组件，在平时的工作内容也是占有一席之地。遗憾的是，作为一个小甲方，我们确实没有足够的预..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              我用几十行代码封装了xray
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-02
+              </span>
+              <span>
+                15 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/ten-lines-code-to-use-xray.png" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h1 id="0x00-前言">0x00 前言</h1>
+<p>作为一个从乙方转到甲方的安全从业人员，近期，我的观点慢慢从挖掘技术的深度，转变为“解决问题“的模式。漏洞扫描系统作为不可获缺的企业安全建设组件，在平时的工作内容也是占有一席之地。遗憾的是，作为一个小甲方，我们确实没有足够的预算来支撑完全购买优秀的乙方安全产品以构建自己的安全体系。但是万幸“老东家”免费开放了 xray 的使用，同时作为一个公益项目，欢迎广大企业集成。这对我来说简直是新世纪福音。</p>
+<p>xray 是一个优秀的低位安全的产品，在企业安全建设过程中的价值在于产生高质量的安全信息以供“大脑“（高位安全产品）进行分析、关联、归档以及决策。本文旨在为企业安全人员提供 xray 落地实践的行之有效的方式，并加深大家对高位/低位安全的认识。</p>
+<h2 id="文章导览">文章导览</h2>
+<ul>
+<li>0x01 平台很重要！SIEM</li>
+<li>0x02 Palm SIEM 与 xray
+<ul>
+<li>让你意想不到的集成方式</li>
+</ul>
+</li>
+<li>0x03 启示</li>
+</ul>
+<h1 id="0x01-平台很重要siem">0x01 平台很重要！SIEM</h1>
+<p>SIEM: 安全信息与实践管理系统，一般作为企业安全“大脑”一样存在，负责分析/处理/运营安全事件。</p>
+<p>一般来说 SIEM 最具代表性的商业案例 Splunk 提供了强大的数据分析能力，但是实际在运营过程中，会发现数据接入一般会采用接入安全日志的接入或者使用发送指定的 Schema 发送到 Splunk；SIEM 本质上不是数据源，一般作为数据二次加工工厂，根据数据生成分析结论，或者进行可视化，让运营人员去下结论；这虽然是运营的重要一环，但是也仅仅是一环。</p>
+<p>Palm SIEM 是美菜安全研发的一款综合性 SIEM，旨在提供内部安全事件管理的一站式平台，最重要的它不仅是数据分析和二次加工的大脑，同时还具备了数据源的能力和足够的开放性，非常灵活（甚至可以编写脚本）来产生数据源；同时平台的工单体系可以实现运营过程的闭环，真正实现安全事件全生命周期的管理。</p>
+<h2 id="概览">概览</h2>
+<figure data-type="image" tabindex="1"><img src="https://blog.xray.cool/post-images/1599125697337.png" alt="" loading="lazy"></figure>
+<p>作为企业安全中心，我们的 SIEM 承担着：HIDS/节点监控/安全事件风控与审计/报表工单/资产收集/内部数据分享等一系列重要基础功能。</p>
+<p>由于平台设计支持动态嵌入式语言与分布式节点提供数据源这种精彩的特性，虽然传统 SIEM 一般只作为数据分析和指令下发的大脑，但是 Palm SIEM 除此之外，却具有了各种“触手”来实现低位安全的功能和难以置信的数据分析能力。</p>
+<h2 id="特性一天生的分布式">特性一：“天生的分布式”</h2>
+<p>本身平台采用相对成熟的 RabbitMQ AMQP 作为平台通信的协议，在此之上构建了完善的中心服务器与节点服务器的通信和管理协议，具备了常见服务分治系统的特性。也就意味着我们可以通过为 Palm SIEM 增加有特定功能的分布式节点，直接为 Palm SIEM 增加特定数据源；实际上，我们 Palm SIEM 的日志审计和风控功能就是通过一个 LogAgent 来接收内网各种业务系统的日志，通过 RabbitMQ 传输样本日志到平台内部做数据分析。</p>
+<p>除此之外，我如果想要集成 IDS/IPS，我就为 Palm SIEM 写一个 IDS/IPS 功能的节点就可以（实际上，我用任何开源产品把它封装为 Palm SIEM 的节点也可以）；当然，我可以写一个 Xray 专用节点，这样我们的 Palm SIEM 就理论上拥有了“分布式漏洞扫描“能力。</p>
+<h2 id="特性二深度绑定平台的动态嵌入式语言">特性二：深度绑定平台的动态嵌入式语言</h2>
+<p>这可能是 Palm SIEM 最引以为傲的一个超能力，同时也是 xray 的生存土壤，是 xray 获取平台资源和产生漏洞信息源进入系统的入口；同时，由于平台绑定语言的存在，让我们的 SIEM 表现的更像一个具有各种特性的“操作系统”，你在脚本中甚至可以实现：</p>
+<ol>
+<li>在安全限度内，访问平台数据库中的任何数据源：例如 HIDS 的数据可以在任何脚本内和公司现有资产数据，扫描器数据，甚至威胁情报数据，CVE 数据进行关联查询和分析
+<ul>
+<li>如何保证真正的安全限度内？这门平台绑定语言的本身任何功能都没有，他的所有函数和平台扩展功能都是白名单开放，甚至有一些变量通过外部注入的方式提供；</li>
+</ul>
+</li>
+<li>特定任务脚本需要输出图形化界面，我们甚至可以在脚本中调用绘图接口来画图，图形的数据源可以是第一步中产生的任何中间结果
+<ul>
+<li>当然本质上通过产生数据源，存储在平台数据库中，前端查询绘图信息，通过前端的绘图库把数据源可视化出来</li>
+</ul>
+</li>
+<li>甚至你可以在安全的限度内执行漏洞扫描或者端口扫描，并自己决定你的扫描结果存储在哪里；存入资产库，还是绘制报告，通知某同事？当然如果你都想做，就都可以做到</li>
+<li>平台脚本可以限制频率安全调用钉钉的通知接口，使用 SMTP 邮件配置通过企业邮箱发送给特定用户</li>
+</ol>
+<p>当然，我可并不是PPT工程师，风控与审计（异步与离线风控/内审）就是本特性落地的最佳实践：</p>
+<ol>
+<li>每天上亿条各种内部系统的关键步骤埋点日志，可伸缩地每天定时输出系统审计报告为合规审查提供客观数据支撑；关键系统的行为风控</li>
+<li>定期可视化报表和数据筛查，定位可疑员工行为和风险行为；高危行为随时通知安全审计人员，截止写稿时累计发现两百余起安全事件；</li>
+<li>关键岗位系统精确到人，关键指标随时溯源，随时历史发现异常；</li>
+</ol>
+<p>当然，一些常规的资产扫描/定时扫描/监控通知任务，也都是通过这种脚本来进行的；</p>
+<p>通常来说, 我见到的实现上述功能的系统, 复杂度相当之高, 研发通常需要辗转各种服务之间调用; 当时这些功能对于我们来说, 只需要一个脚本文件而已;</p>
+<h3 id="核心功能">核心功能</h3>
+<ol>
+<li>数据库 CRUD：限度内读取数据库，平台内的脚本引擎可以固定查询特定资产/特定数据库的表；</li>
+<li>可视化构建：绘图库可以快速构建各种图的元数据，并支持对图的增删改查，可以直接从脚本构建可视化元数据；</li>
+<li>支持扫描功能：Golang 开放扫描/爬虫接口/数据分析/甚至 AI 接口；</li>
+<li>安全限度内执行上传的二进制文件：外部扩展；</li>
+<li>系统中的执行引擎可以直接获取风控数据（日志）</li>
+</ol>
+<h1 id="0x02-palm-siem-与-xray">0x02 Palm SIEM 与 xray</h1>
+<p>当大家对 Palm SIEM 核心功能有了一定印象之后，我们就可以着手将 xray 集成进 SIEM 中了！</p>
+<h2 id="让你意想不到的集成方式">让你意想不到的集成方式</h2>
+<p>我们吹牛说我们几十行就可以做到集成 xray, 当然要说到做到: Talk is cheep!</p>
+<figure data-type="image" tabindex="2"><img src="https://blog.xray.cool/post-images/1599125730201.png" alt="" loading="lazy"></figure>
+<p>当然你肯定也发现了，这段代码你并没有办法分辨他准确的是一种啥语言：像是 Golang 但是又不像。不用怀疑了，这门语言就是我为 SIEM 平台改造的一个嵌入式语言，原项目（qiniu/qlang）当时源项目很多 Bug 和坑(核心原理是反射)，并不可以直接拿来用做嵌入式语言；经过多次修复BUG和特定方向优化之后，我们把 qlang 与 SIEM 进行安全改造和深度整合，使之具有了操作 SIEM 内部各种功能的超强能力；</p>
+<blockquote>
+<p>其实更多的情况是：”我想给这门语言一个xxx的功能“，然后我用 Golang 写好了，随手导出给了这门语言</p>
+<p>&quot;神说要有光&quot;</p>
+</blockquote>
+<p>我们简单总结一下上面脚本的具体内容：</p>
+<ol>
+<li>从 SIEM 网盘中获取 xray 二进制文件（位置）</li>
+<li>解析参数（参数通过 jsonschema 进行校验，不用担心随便输入一些东西导致系统崩溃）</li>
+<li>启动 Webhook 服务器，等待一秒钟：Webhook 是用来接收 xray 输出漏洞信息和调试信息的关键组件</li>
+<li>构建 xray 子进程，并执行</li>
+</ol>
+<p>当然，整个脚本本身就在一个新的进程中执行，不必担心脚本进程对主进程产生性能影响，一般来说他们会被分配到不同的CPU核上执行；另一方面，脚本进程如果异常了，我们可以毫无顾忌的 Kill 掉他们，而不必担心误杀主进程。</p>
+<h3 id="详细步骤">详细步骤</h3>
+<p>在这一小段代码中，我们发现，xray 是作为一个二进制文件加载在组件中的；</p>
+<p>当然内置了 buildin tag 的脚本才可以使用可执行二进制文件；如下图可看到</p>
+<figure data-type="image" tabindex="3"><img src="https://blog.xray.cool/post-images/1599125767609.png" alt="" loading="lazy"></figure>
+<p>我们发现了，威胁脚本其实控制了整个任务的执行流程，任何任务的执行，我们只需要写一个脚本就可以执行，我们发现他有如下几个要素</p>
+<ol>
+<li>脚本名称/脚本类型，也就是这个任务模版的名称/类型</li>
+<li>设置脚本描述，也就是这个任务模版是做什么的</li>
+<li>设置脚本的 Tags：Tags可以赋予脚本很特殊的功能，或者仅仅用来标识筛选脚本功能，甚至就记录一下无聊的数字也可以；当然有一些特殊的 tags 是无法使用的，比如 Buildin，这种 Tags 只能超级管理员在后台可以创建，前台无法创建（保障安全）；</li>
+<li>脚本内容（具体脚本执行的内容）</li>
+</ol>
+<p>威胁分析脚本就是任务模版，控制整个任务的执行过程和扩展功能，包括</p>
+<ol>
+<li>接收参数，执行特定函数或者功能，进行威胁分析</li>
+<li>绘制可视化图表和生成报告（可选）</li>
+<li>钉钉通知，平台通知（可选）</li>
+</ol>
+<p>脚本精髓就是<strong>把各种恼人的服务，安全地封装成一个尽量的短数据通路；以减小各种研发成本和维护成本，同时给予规则的编写者最大程度的自由和对系统平台的控制权；</strong></p>
+<p>在使用脚本创建任务的时候，当然我们可以看到如下表单</p>
+<p>下图为使用平台自带的指纹识别和资产收集 + xray 封装的基础爬虫漏扫创建任务的过程</p>
+<figure data-type="image" tabindex="4"><img src="https://blog.xray.cool/post-images/1599125831585.png" alt="" loading="lazy"></figure>
+<h3 id="所见即所得">所见即所得</h3>
+<p>我们发现 xray 相关的任务模版有三种</p>
+<ol>
+<li>xray 扫描网络资产+主动爬虫扫描漏洞（批量）
+<ol>
+<li>资产收集+漏洞扫描</li>
+</ol>
+</li>
+<li>xray 被动扫描</li>
+<li>xray 主动漏洞扫：这个用于巡检已知资产，不会进行资产收集
+<ol>
+<li>批量</li>
+<li>前置条件：资产</li>
+</ol>
+</li>
+</ol>
+<h3 id="我们就大家最关注的被动扫描来介绍我们具体如何使用平台的">我们就大家最关注的“被动扫描”来介绍我们具体如何使用平台的：</h3>
+<h4 id="创建任务启动任务">创建任务/启动任务</h4>
+<figure data-type="image" tabindex="5"><img src="https://blog.xray.cool/post-images/1599125875550.png" alt="" loading="lazy"></figure>
+<p>在界面上点点点之后，我们就成功创建了一个被动扫描的任务</p>
+<h4 id="开始扫描">开始扫描</h4>
+<p>我们打开我们的想要扫描的目标，设置情景模式为 xray，如下配置即可</p>
+<figure data-type="image" tabindex="6"><img src="https://blog.xray.cool/post-images/1599125888841.png" alt="" loading="lazy"></figure>
+<p>就可以开心的点点点了</p>
+<h4 id="如何查看扫描到的漏洞">如何查看扫描到的漏洞？</h4>
+<p>当然在任务日志中，我只是简单打印了一条</p>
+<figure data-type="image" tabindex="7"><img src="https://blog.xray.cool/post-images/1599125903041.png" alt="" loading="lazy"></figure>
+<p>其实，如果想要查看详细信息，我们可以直接在 SIEM 的漏洞库查看，或者直接从任务页面进入漏洞分析页面</p>
+<figure data-type="image" tabindex="8"><img src="https://blog.xray.cool/post-images/1599125928106.png" alt="" loading="lazy"></figure>
+<h4 id="其他">其他</h4>
+<p>如果想要看任务状态和日志相关内容，我们可以按如下步骤处理</p>
+<figure data-type="image" tabindex="9"><img src="https://blog.xray.cool/post-images/1599125964808.png" alt="" loading="lazy"></figure>
+<p>当然我们发现了，任务的 Actions 有很多很多，诸如</p>
+<ol>
+<li>查看任务状态</li>
+<li>查看任务参数（ReactJson）</li>
+<li>重建任务（参数改变）</li>
+<li>重新执行（参数不变）</li>
+<li>相关执行记录（重新执行的每一次记录在这里都会有）</li>
+<li>任务相关漏洞</li>
+<li>删除任务数据</li>
+</ol>
+<h4 id="你以为这就是全部了当然不可能">你以为这就是全部了？当然不可能</h4>
+<p>由于篇幅限制，使用本 Palm SIEM 平台进行实时通知，报表生成，DingDing 机器人通知，甚至工单系统等功能来不及介绍；</p>
+<p>如果之后有机会再见，我们慢慢来谈更高级的平台使用案例和运营案例；</p>
+<h1 id="0x03-启示">0x03 启示</h1>
+<p>当然，本文写在这里，自然就要进入尾声了，毕竟我已经完整地告诉大家我是如何“几十行代码”将 xray 封装进真正的企业的安全运营中。</p>
+<p>细心的读者也肯定注意到了，xray 集成入 Palm SIEM 仅仅是 Palm SIEM 的冰山一角</p>
+<p>从侧边导航栏，我们可以发现 Palm SIEM 的功能不仅包含</p>
+<ol>
+<li>HIDS</li>
+<li>风控/内部员工行为风控</li>
+<li>审计报表系统</li>
+<li>安全部门工单与日常安全运营</li>
+<li>资产管理与测绘</li>
+<li>漏洞管理</li>
+<li>漏洞扫描</li>
+<li>钉钉机器人/SMTP通知</li>
+</ol>
+<p>甚至还有一些大家觉得写起来很繁琐的但是已经在我们平时工作中证明了非常优秀的功能</p>
+<ol>
+<li>账号分权，可以开通子账号并设置权限（HIDS运营人员，风控审计员，业务方审计员，超级管理员）</li>
+<li>内部支持 Markdown 的 Drops，用于存放：内部运营信息简单共享，平台使用手册等</li>
+<li>CVE 漏洞库，可以随时更新的 CVE 漏洞库</li>
+<li>物料库/网盘</li>
+<li>工单与任何重要资产/重要标注信息的联动</li>
+<li>大部分重要资产都实现 Tags 功能，随时标记想法和需要</li>
+</ol>
+<h2 id="qa">Q&amp;A</h2>
+<h3 id="1-能了解一下-palm-siem-的技术栈吗">1. 能了解一下 Palm SIEM 的技术栈吗？</h3>
+<pre><code>1. 后端 Golang
+2. 前端 Typescript + React Hooks + Ant design + AntD L7 G2 + BizCharts(可视化)
+3. Web 接口：swagger2.0，通过 go-swagger 来生成绝大部分 web （无聊的）业务代码，通过  @manifoldco/swagger-to-ts 生成 typescript 相关 Models
+4. 消息中间件：RabbitMQ
+5. 数据库：Postgres
+</code></pre>
+<h3 id="2-你觉得-palm-siem-和其他安全产品比最大的优势在于哪里">2. 你觉得 Palm SIEM 和其他安全产品比最大的优势在于哪里？</h3>
+<pre><code>与同类（SOC/SIEM）安全产品相比：最大的优势当然是核心脚本引擎的“最短数据通路”与“平台最大权限”
+
+作为一个乙方研发转甲方安全的人，相较于乙方安全产品研发流程，本系统的研发有很多其他的开发过程优势：
+
+1. 我想做的任何功能，都能马上得到用户反馈，至少他是符合当前公司使用习惯的
+2. 开发周期的大大缩短，&lt;del&gt;设计&lt;/del&gt;前后端同时开工，关键核心功能保证测试，自动化部署运维这些都已经融合在日常开发中
+
+值得再提一嘴另外一个概念：低位安全和高位安全
+
+Palm SIEM 本身不是一个低位安全产品，提供基础的数据采集，数据源生成等本身不是 Palm SIEM 的重点，作为高位安全产品，他的正统作用是使用嵌入式脚本超灵活分析安全数据，把各种低位安全数据整合起来才是他的正统的用法，比如异步/离线风控（行为风控/员工风控）；但是由于同时维护各种低位安全产品的成本很高，我决定让 Palm SIEM 也可以拥有这一系列低位安全产品的能力，或者能力接口，比如 xray 的集成。
+
+因此，高位安全和低位安全相结合的 SOC/SIEM 也是本系统的一大特色。
+</code></pre>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li><a href="#0x00-%E5%89%8D%E8%A8%80">0x00 前言</a>
+<ul>
+<li><a href="#%E6%96%87%E7%AB%A0%E5%AF%BC%E8%A7%88">文章导览</a></li>
+</ul>
+</li>
+<li><a href="#0x01-%E5%B9%B3%E5%8F%B0%E5%BE%88%E9%87%8D%E8%A6%81siem">0x01 平台很重要！SIEM</a>
+<ul>
+<li><a href="#%E6%A6%82%E8%A7%88">概览</a></li>
+<li><a href="#%E7%89%B9%E6%80%A7%E4%B8%80%E5%A4%A9%E7%94%9F%E7%9A%84%E5%88%86%E5%B8%83%E5%BC%8F">特性一：“天生的分布式”</a></li>
+<li><a href="#%E7%89%B9%E6%80%A7%E4%BA%8C%E6%B7%B1%E5%BA%A6%E7%BB%91%E5%AE%9A%E5%B9%B3%E5%8F%B0%E7%9A%84%E5%8A%A8%E6%80%81%E5%B5%8C%E5%85%A5%E5%BC%8F%E8%AF%AD%E8%A8%80">特性二：深度绑定平台的动态嵌入式语言</a>
+<ul>
+<li><a href="#%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD">核心功能</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#0x02-palm-siem-%E4%B8%8E-xray">0x02 Palm SIEM 与 xray</a>
+<ul>
+<li><a href="#%E8%AE%A9%E4%BD%A0%E6%84%8F%E6%83%B3%E4%B8%8D%E5%88%B0%E7%9A%84%E9%9B%86%E6%88%90%E6%96%B9%E5%BC%8F">让你意想不到的集成方式</a>
+<ul>
+<li><a href="#%E8%AF%A6%E7%BB%86%E6%AD%A5%E9%AA%A4">详细步骤</a></li>
+<li><a href="#%E6%89%80%E8%A7%81%E5%8D%B3%E6%89%80%E5%BE%97">所见即所得</a></li>
+<li><a href="#%E6%88%91%E4%BB%AC%E5%B0%B1%E5%A4%A7%E5%AE%B6%E6%9C%80%E5%85%B3%E6%B3%A8%E7%9A%84%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F%E6%9D%A5%E4%BB%8B%E7%BB%8D%E6%88%91%E4%BB%AC%E5%85%B7%E4%BD%93%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E5%B9%B3%E5%8F%B0%E7%9A%84">我们就大家最关注的“被动扫描”来介绍我们具体如何使用平台的：</a>
+<ul>
+<li><a href="#%E5%88%9B%E5%BB%BA%E4%BB%BB%E5%8A%A1%E5%90%AF%E5%8A%A8%E4%BB%BB%E5%8A%A1">创建任务/启动任务</a></li>
+<li><a href="#%E5%BC%80%E5%A7%8B%E6%89%AB%E6%8F%8F">开始扫描</a></li>
+<li><a href="#%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E6%89%AB%E6%8F%8F%E5%88%B0%E7%9A%84%E6%BC%8F%E6%B4%9E">如何查看扫描到的漏洞？</a></li>
+<li><a href="#%E5%85%B6%E4%BB%96">其他</a></li>
+<li><a href="#%E4%BD%A0%E4%BB%A5%E4%B8%BA%E8%BF%99%E5%B0%B1%E6%98%AF%E5%85%A8%E9%83%A8%E4%BA%86%E5%BD%93%E7%84%B6%E4%B8%8D%E5%8F%AF%E8%83%BD">你以为这就是全部了？当然不可能</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#0x03-%E5%90%AF%E7%A4%BA">0x03 启示</a>
+<ul>
+<li><a href="#qa">Q&amp;A</a>
+<ul>
+<li><a href="#1-%E8%83%BD%E4%BA%86%E8%A7%A3%E4%B8%80%E4%B8%8B-palm-siem-%E7%9A%84%E6%8A%80%E6%9C%AF%E6%A0%88%E5%90%97">1. 能了解一下 Palm SIEM 的技术栈吗？</a></li>
+<li><a href="#2-%E4%BD%A0%E8%A7%89%E5%BE%97-palm-siem-%E5%92%8C%E5%85%B6%E4%BB%96%E5%AE%89%E5%85%A8%E4%BA%A7%E5%93%81%E6%AF%94%E6%9C%80%E5%A4%A7%E7%9A%84%E4%BC%98%E5%8A%BF%E5%9C%A8%E4%BA%8E%E5%93%AA%E9%87%8C">2. 你觉得 Palm SIEM 和其他安全产品比最大的优势在于哪里？</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/the-first-experience-of-esprima/">
+              <h3 class="post-title">
+                基于Esprima的JS语义分析
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

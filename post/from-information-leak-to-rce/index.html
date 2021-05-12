@@ -1,0 +1,219 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>记一次从信息泄漏到RCE | xray 技术博客</title>
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790014149">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
+<link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
+<link rel="alternate" type="application/atom+xml" title="记一次从信息泄漏到RCE | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700">
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-176727836-2"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-176727836-2');
+</script>
+
+
+    <meta name="description" content="0x01概述
+最近遇到很多 spring boot 的站，这时候问题来了，如果没有 jolokia 、env 不让 POST ，那还能拿到重大成果吗，哈哈哈，下面就慢慢看吧。
+0x02 上手操作
+目标站存在 spring env 信息泄漏。..." />
+    <meta name="keywords" content="" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+    <script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://blog.xray.cool">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790014149" alt="">
+  </a>
+  <h1 class="site-title">
+    xray 技术博客
+  </h1>
+  <p class="site-description">
+    
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives/" class="menu">
+          归档
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              记一次从信息泄漏到RCE
+            </h2>
+            <div class="post-info">
+              <span>
+                2020-09-04
+              </span>
+              <span>
+                3 min read
+              </span>
+              
+            </div>
+            
+              <img class="post-feature-image" src="https://blog.xray.cool/post-images/from-information-leak-to-rce.jpg" alt="">
+            
+            <div class="post-content-wrapper">
+              <div class="post-content">
+                <h2 id="0x01概述">0x01概述</h2>
+<p>最近遇到很多 <strong>spring boot</strong> 的站，这时候问题来了，如果没有 <strong>jolokia</strong> 、<strong>env</strong> 不让 <strong>POST</strong> ，那还能拿到重大成果吗，哈哈哈，下面就慢慢看吧。</p>
+<h2 id="0x02-上手操作">0x02 上手操作</h2>
+<p>目标站存在 <strong>spring env</strong> 信息泄漏。</p>
+<figure data-type="image" tabindex="1"><img src="http://l1nk3r.xmutsec.com/blog/bi2pt.png" alt="http://l1nk3r.xmutsec.com/blog/bi2pt.png" loading="lazy"></figure>
+<p>测试情况下发现限制了POST方法。</p>
+<figure data-type="image" tabindex="2"><img src="http://l1nk3r.xmutsec.com/blog/ll0eg.png" alt="http://l1nk3r.xmutsec.com/blog/ll0eg.png" loading="lazy"></figure>
+<p>从<code>http://www.xx.com/heapdump</code>获取调用栈相关信息，如果是 <strong>sping boot 2.x</strong> 的话路径就是<code>http://www.xx.com/actuator/heapdump</code>。</p>
+<figure data-type="image" tabindex="3"><img src="http://l1nk3r.xmutsec.com/blog/l62kg.png" alt="http://l1nk3r.xmutsec.com/blog/l62kg.png" loading="lazy"></figure>
+<p>紧接着使用<a href="https://www.o2oxy.cn/wp-content/uploads/2020/05/MemoryAnalyzer.zip">这个工具</a>，将内存加载，有个注意事项是，内存如果解压出来，比如当前我解压出来 <strong>1.46G</strong> ，那么在 <strong>MemoryAnalyzer.ini</strong> 这个文件当中需要将内存设置为大于这个大小，我设置为 <strong>2G</strong> ，否则会报错。</p>
+<figure data-type="image" tabindex="4"><img src="http://l1nk3r.xmutsec.com/blog/qwtbh.png" alt="http://l1nk3r.xmutsec.com/blog/qwtbh.png" loading="lazy"></figure>
+<pre><code>-startup
+plugins/org.eclipse.equinox.launcher_1.3.100.v20150511-1540.jar
+--launcher.library
+plugins/org.eclipse.equinox.launcher.win32.win32.x86_64_1.1.300.v20150602-1417
+-vmargs
+-Xmx2048m
+</code></pre>
+<p>进行内存搜索的时候有几个技巧，例如我们在网页上找到了阿里云相关的ak信息，但是sk被脱敏了，如果这时候搞定ak和sk的话，那么势必这个服务器就是我们的囊中之物了。</p>
+<pre><code>&quot;aliyun.oss.accessKeyId&quot;: &quot;LTAxxxxxxxxxxxx&quot;
+&quot;aliyun.oss.accessKeySecret&quot;: &quot;******&quot;
+</code></pre>
+<p>所以这里先介绍这个工具的使用思路，以阿里云为例子，由于阿里云实际上开发的时候由自己相关的SDK，从SDK中找到相关类名字，一般 <strong>ak</strong> 与 <strong>sk</strong> 与这个 <strong>OSSClient</strong> 有关系</p>
+<figure data-type="image" tabindex="5"><img src="http://l1nk3r.xmutsec.com/blog/e4kyu.png" alt="http://l1nk3r.xmutsec.com/blog/e4kyu.png" loading="lazy"></figure>
+<p>接着全局搜索 <strong>OSSClient</strong> 这个关键词，看看哪里调用了他，找到了<code>AliyunOSSServiceImpl.getUserSkinOssClient()</code>这个方法和 <strong>OSSClient</strong> 有关系，这时候要做的就是进一步搜索 <strong>AliyunOSSServiceImpl</strong> 找到了 <strong>AliyunOSSServiceImpl</strong> ，选择下图中的按钮，即可出现我们要的信息了。</p>
+<figure data-type="image" tabindex="6"><img src="http://l1nk3r.xmutsec.com/blog/hrwp5.png" alt="http://l1nk3r.xmutsec.com/blog/hrwp5.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="7"><img src="http://l1nk3r.xmutsec.com/blog/hrwp5.png" alt="http://l1nk3r.xmutsec.com/blog/hrwp5.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="8"><img src="http://l1nk3r.xmutsec.com/blog/hxlgp.png" alt="http://l1nk3r.xmutsec.com/blog/hxlgp.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="9"><img src="http://l1nk3r.xmutsec.com/blog/6p9fi.png" alt="http://l1nk3r.xmutsec.com/blog/6p9fi.png" loading="lazy"></figure>
+<p>通过这部分信息直接导入行云助手，服务器就出来了。</p>
+<figure data-type="image" tabindex="10"><img src="http://l1nk3r.xmutsec.com/blog/id3p4.png" alt="http://l1nk3r.xmutsec.com/blog/id3p4.png" loading="lazy"></figure>
+<p>另外发现腾讯云 qcloud 的相关信息，直接搜索 qcloud，出来关键类 <strong>QcloudUtil</strong></p>
+<figure data-type="image" tabindex="11"><img src="http://l1nk3r.xmutsec.com/blog/lzuvh.png" alt="http://l1nk3r.xmutsec.com/blog/lzuvh.png" loading="lazy"></figure>
+<p>继续搜索 <strong>QcloudUtil</strong> ，内容就出来了。</p>
+<figure data-type="image" tabindex="12"><img src="http://l1nk3r.xmutsec.com/blog/dv6n1.png" alt="http://l1nk3r.xmutsec.com/blog/dv6n1.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="13"><img src="http://l1nk3r.xmutsec.com/blog/c608s.png" alt="http://l1nk3r.xmutsec.com/blog/c608s.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="14"><img src="http://l1nk3r.xmutsec.com/blog/c608s.png" alt="http://l1nk3r.xmutsec.com/blog/c608s.png" loading="lazy"></figure>
+<p>最后由于微信没有官方的 <strong>Java sdk</strong> ，因此以 <strong>wx</strong> 或者 <strong>Wx</strong> 为关键字进行搜索，从名字来看其他都不是，反正一个个点开看，也找到了。</p>
+<figure data-type="image" tabindex="15"><img src="http://l1nk3r.xmutsec.com/blog/ce503.png" alt="http://l1nk3r.xmutsec.com/blog/ce503.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="16"><img src="http://l1nk3r.xmutsec.com/blog/ce503.png" alt="http://l1nk3r.xmutsec.com/blog/ce503.png" loading="lazy"></figure>
+<figure data-type="image" tabindex="17"><img src="http://l1nk3r.xmutsec.com/blog/d7wuo.png" alt="http://l1nk3r.xmutsec.com/blog/d7wuo.png" loading="lazy"></figure>
+<h2 id="0x03-后话">0x03 后话</h2>
+<p>这个功能点实际上是开发用来做一些内存调试信息报错的，但是对于我们安全人员来说，就会出现很多其他问题，那么问题来了，开发要是转安全，安全还有饭吃吗。</p>
+
+              </div>
+              <div class="toc-container">
+                <ul class="markdownIt-TOC">
+<li>
+<ul>
+<li><a href="#0x01%E6%A6%82%E8%BF%B0">0x01概述</a></li>
+<li><a href="#0x02-%E4%B8%8A%E6%89%8B%E6%93%8D%E4%BD%9C">0x02 上手操作</a></li>
+<li><a href="#0x03-%E5%90%8E%E8%AF%9D">0x03 后话</a></li>
+</ul>
+</li>
+</ul>
+
+              </div>
+            </div>
+          </article>
+        </div>
+
+        
+          <div class="next-post">
+            <div class="next">下一篇</div>
+            <a href="https://blog.xray.cool/post/a-special-method-to-detect-shiro-framework/">
+              <h3 class="post-title">
+                一种另类的 shiro 检测方式
+              </h3>
+            </a>
+          </div>
+        
+
+        
+
+        <div class="site-footer">
+  
+  <a class="rss" href="https://blog.xray.cool/atom.xml" target="_blank">
+    <i class="ri-rss-line"></i> RSS
+  </a>
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      hljs.initHighlightingOnLoad()
+
+      let mainNavLinks = document.querySelectorAll(".markdownIt-TOC a");
+
+      // This should probably be throttled.
+      // Especially because it triggers during smooth scrolling.
+      // https://lodash.com/docs/4.17.10#throttle
+      // You could do like...
+      // window.addEventListener("scroll", () => {
+      //    _.throttle(doThatStuff, 100);
+      // });
+      // Only not doing it here to keep this Pen dependency-free.
+
+      window.addEventListener("scroll", event => {
+        let fromTop = window.scrollY;
+
+        mainNavLinks.forEach((link, index) => {
+          let section = document.getElementById(decodeURI(link.hash).substring(1));
+          let nextSection = null
+          if (mainNavLinks[index + 1]) {
+            nextSection = document.getElementById(decodeURI(mainNavLinks[index + 1].hash).substring(1));
+          }
+          if (section.offsetTop <= fromTop) {
+            if (nextSection) {
+              if (nextSection.offsetTop > fromTop) {
+                link.classList.add("current");
+              } else {
+                link.classList.remove("current");    
+              }
+            } else {
+              link.classList.add("current");
+            }
+          } else {
+            link.classList.remove("current");
+          }
+        });
+      });
+
+    </script>
+  </body>
+</html>
