@@ -4,7 +4,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>十二个案例重新认识 XSS (上) | xray 技术博客</title>
-<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620790414551">
+<link rel="shortcut icon" href="https://blog.xray.cool/favicon.ico?v=1620791835015">
 <link href="https://cdn.jsdelivr.net/npm/remixicon@2.3.0/fonts/remixicon.css" rel="stylesheet">
 <link rel="stylesheet" href="https://blog.xray.cool/styles/main.css">
 <link rel="alternate" type="application/atom+xml" title="十二个案例重新认识 XSS (上) | xray 技术博客 - Atom Feed" href="https://blog.xray.cool/atom.xml">
@@ -33,7 +33,7 @@
       <div class="main-content">
         <div class="site-header">
   <a href="https://blog.xray.cool">
-  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620790414551" alt="">
+  <img class="avatar" src="https://blog.xray.cool/images/avatar.png?v=1620791835015" alt="">
   </a>
   <h1 class="site-title">
     xray 技术博客
@@ -909,7 +909,7 @@ uin=../test/xsstest5/user.php?callback=alert(1)
 </code></pre>
 <p>然后用Edge打开页面（模拟受害者访问攻击者服务器页面）就可以自动跳转触发。</p>
 <p>回到使用xsstest6的触发点：缩短弹框函数</p>
-<p>其实利用原理**JQuery <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mo>(</mo><mo>)</mo><mi>D</mi><mi>O</mi><mi>M</mi><mi>X</mi><mi>S</mi><mi>S</mi><mi mathvariant="normal">特</mi><mi mathvariant="normal">性</mi><mo>∗</mo><mo>∗</mo><mi mathvariant="normal">在</mi><mi mathvariant="normal">第</mi><mi mathvariant="normal">二</mi><mi mathvariant="normal">题</mi><mi mathvariant="normal">中</mi><mi mathvariant="normal">已</mi><mi mathvariant="normal">经</mi><mi mathvariant="normal">详</mi><mi mathvariant="normal">细</mi><mi mathvariant="normal">的</mi><mi mathvariant="normal">分</mi><mi mathvariant="normal">析</mi><mi mathvariant="normal">了</mi><mi mathvariant="normal">，</mi><mi mathvariant="normal">就</mi><mi mathvariant="normal">是</mi><mi mathvariant="normal">‘</mi></mrow><annotation encoding="application/x-tex">() DOM XSS特性**在第二题中已经详细的分析了，就是`</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mopen">(</span><span class="mclose">)</span><span class="mord mathdefault" style="margin-right:0.02778em;">D</span><span class="mord mathdefault" style="margin-right:0.02778em;">O</span><span class="mord mathdefault" style="margin-right:0.10903em;">M</span><span class="mord mathdefault" style="margin-right:0.07847em;">X</span><span class="mord mathdefault" style="margin-right:0.05764em;">S</span><span class="mord mathdefault" style="margin-right:0.05764em;">S</span><span class="mord cjk_fallback">特</span><span class="mord cjk_fallback">性</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">∗</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord">∗</span><span class="mord cjk_fallback">在</span><span class="mord cjk_fallback">第</span><span class="mord cjk_fallback">二</span><span class="mord cjk_fallback">题</span><span class="mord cjk_fallback">中</span><span class="mord cjk_fallback">已</span><span class="mord cjk_fallback">经</span><span class="mord cjk_fallback">详</span><span class="mord cjk_fallback">细</span><span class="mord cjk_fallback">的</span><span class="mord cjk_fallback">分</span><span class="mord cjk_fallback">析</span><span class="mord cjk_fallback">了</span><span class="mord cjk_fallback">，</span><span class="mord cjk_fallback">就</span><span class="mord cjk_fallback">是</span><span class="mord">‘</span></span></span></span>(&quot;<img src=x onerror=alert(1)>&quot;)`可以作为alert(1)的弹框替代，但是这么长一串反而超长了。</p>
+<p>其实利用原理<strong>JQuery $() DOM XSS特性</strong>在第二题中已经详细的分析了，就是<code>$(&quot;&lt;img src=x onerror=alert(1)&gt;&quot;)</code>可以作为alert(1)的弹框替代，但是这么长一串反而超长了。</p>
 <p>我们只要把img标签设置成一个变量就可以达到缩短长度的目的。</p>
 <pre><code class="language-js">var a=&quot;&lt;img src=x onerror=alert(1)&gt;&quot;
 $(a)
